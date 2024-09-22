@@ -22,7 +22,19 @@ import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import {pink} from '@mui/material/colors';
 import './App.css';
+import logo from './logo_msgct.png';
 
+//set meta data
+const meta = {
+  title: 'Multi-Source GNSS Constellation Tracker',
+  description: "Monitor the status of GNSS Constellations in real time or in the past.",
+  meta: {
+    charset: 'utf-8',
+    name: {
+      keywords: 'react,meta,document,html,tags'
+    }
+  }
+};
 
 // Function to create GPS satellite data, mimicking GPS-153 receiver output
 function createSatelliteData(prn, azimuth, elevation, signalStrength, health, blockType) {
@@ -258,11 +270,7 @@ function App() {
            {/* Logo and Title */}
            <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Logo Image */}
-            <img
-              src="%PUBLIC_URL%/logo512.png" // Replace with your actual logo path
-              alt="Logo"
-              style={{ width: '50px', height: '50px', marginRight: '10px' }} // Adjust logo size and spacing
-            />
+            <img src={logo} className='Logo' alt='MSGCT Logo'/>
             <Typography variant="h4">
               Multi-Source GNSS Constellation Tracker
             </Typography>
@@ -284,6 +292,7 @@ function App() {
         <Stack 
           direction={{ xs: 'column', sm: 'row' }}
           spacing={{ xs: 1, sm: 2, md: 4 }}
+          alignItems='center'
         >
           <Container>
             <GPSSatelliteTable />

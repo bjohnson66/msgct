@@ -15,3 +15,10 @@ body {
   --foreground: #ffffff;
 }
 
+.Logo{
+  height: 20vmin;
+  max-height: 100px;
+  /* Set maximum height */
+  pointer-events: none;
+}
+
