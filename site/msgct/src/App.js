@@ -1,9 +1,25 @@
+/*
+  -----------------------------------
+  Acknowledgments
+  -----------------------------------
+  
+  This project utilized OpenAI's ChatGPT (GPT-4) to assist in the development and optimization of various components, including:
+
+  - Generating and refining React components for the application structure.
+  - Integrating satellite tracking functionalities using satellite.js for realistic orbit simulations.
+  - Enhancing visualizations with D3.js to create dynamic and interactive sky plots.
+  - Implementing performance optimizations for efficient rendering and state management.
+  - Debugging and troubleshooting code to ensure application stability.
+
+  All AI-assisted code has been thoroughly reviewed and customized to meet the project's specific requirements and standards.
+*/
+
 import { ThemeProvider, createTheme, CssBaseline, Switch } from '@mui/material';  // Add CssBaseline and Switch imports
 import { Button, Typography, Container, Box } from '@mui/material';
 import Confetti from 'react-confetti';
 import { Helmet } from 'react-helmet';  // Import Helmet for managing metadata
 import * as React from 'react';
-import { useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,16 +29,13 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import Grid from '@mui/material/Grid2';
 import Stack from '@mui/material/Stack';
-import Radio from '@mui/material/Radio';
-import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import FormControl from '@mui/material/FormControl';
-import FormLabel from '@mui/material/FormLabel';
 import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import {pink} from '@mui/material/colors';
 import './App.css';
 import logo from './logo_msgct.png';
+import * as d3 from 'd3';
 
 //set meta data
 const meta = {
@@ -36,14 +49,300 @@ const meta = {
   }
 };
 
+//--------------------------------------
+//  LIVE SKY AND SV DATA PLOT COMPONENT
+//   - AI Generated Component Using GPT o1
+//--------------------------------------
+// Utility function to convert degrees to radians
+const deg2rad = (deg) => (deg * Math.PI) / 180;
+
+// Utility function to calculate azimuth and elevation
+function ECEFToAzEl(satPosECEF, observerPosECEF, observerLat, observerLon) {
+    // Translate satellite position relative to observer
+    const dx = satPosECEF.x - observerPosECEF.x;
+    const dy = satPosECEF.y - observerPosECEF.y;
+    const dz = satPosECEF.z - observerPosECEF.z;
+
+    // Convert observer latitude and longitude to radians
+    const lat = deg2rad(observerLat);
+    const lon = deg2rad(observerLon);
+
+    // Rotation matrix from ECEF to ENU
+    const t = [
+        [-Math.sin(lon), Math.cos(lon), 0],
+        [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)],
+        [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)],
+    ];
+
+    // Apply rotation
+    const east = t[0][0] * dx + t[0][1] * dy + t[0][2] * dz;
+    const north = t[1][0] * dx + t[1][1] * dy + t[1][2] * dz;
+    const up = t[2][0] * dx + t[2][1] * dy + t[2][2] * dz;
+
+    // Calculate azimuth and elevation
+    const azimuth = Math.atan2(east, north) * (180 / Math.PI);
+    const horizontalDist = Math.sqrt(east * east + north * north);
+    const elevation = Math.atan2(up, horizontalDist) * (180 / Math.PI);
+
+    return {
+        azimuth: (azimuth + 360) % 360, // Normalize to [0, 360)
+        elevation,
+    };
+}
+
+const SkyPlot = ({ satellites, observerPos, observerLat, observerLon }) => {
+  const svgRef = useRef();
+
+  useEffect(() => {
+    // Initial setup
+    const width = 500;
+    const height = 500;
+    const svg = d3.select(svgRef.current)
+                  .attr('width', width)
+                  .attr('height', height);
+
+    // Clear previous content
+    svg.selectAll('*').remove();
+
+    const radius = Math.min(width, height) / 2 - 50; // Padding
+
+    const g = svg.append('g')
+                 .attr('transform', `translate(${width / 2}, ${height / 2})`);
+
+    // Draw horizon circle
+    g.append('circle')
+     .attr('r', radius)
+     .attr('fill', 'none')
+     .attr('stroke', '#ccc');
+
+    // Add elevation rings
+    const elevationLevels = [30, 60];
+    elevationLevels.forEach((el) => {
+      const elRadius = (el / 90) * radius;
+      g.append('circle')
+       .attr('r', elRadius)
+       .attr('fill', 'none')
+       .attr('stroke', '#eee')
+       .attr('stroke-dasharray', '4 2');
+      
+      // Add elevation labels
+      g.append('text')
+       .attr('x', 0)
+       .attr('y', -elRadius)
+       .attr('dy', '-0.35em')
+       .attr('text-anchor', 'middle')
+       .attr('font-size', '10px')
+       .attr('fill', '#666')
+       .text(`${el}°`);
+    });
+
+    // Add azimuth lines every 45 degrees
+    for (let az = 0; az < 360; az += 45) {
+      const azRad = deg2rad(az);
+      const x = radius * Math.sin(azRad);
+      const y = -radius * Math.cos(azRad);
+      g.append('line')
+       .attr('x1', 0)
+       .attr('y1', 0)
+       .attr('x2', x)
+       .attr('y2', y)
+       .attr('stroke', '#eee')
+       .attr('stroke-dasharray', '2 2');
+      
+      // Add azimuth labels
+      const labelX = (radius + 15) * Math.sin(azRad);
+      const labelY = -(radius + 15) * Math.cos(azRad);
+      g.append('text')
+       .attr('x', labelX)
+       .attr('y', labelY)
+       .attr('dy', '0.35em')
+       .attr('text-anchor', 'middle')
+       .attr('font-size', '10px')
+       .attr('fill', '#666')
+       .text(`${az}°`);
+    }
+
+    // Save radius and group for later use
+    svg.node().radius = radius;
+    svg.node().g = g;
+  }, []);
+
+  useEffect(() => {
+    // Update satellite data with azimuth and elevation
+    const updatedSatData = satellites.map((sat) => {
+      const azEl = ECEFToAzEl(
+        sat.positionECEF,
+        observerPos,
+        observerLat,
+        observerLon
+      );
+      return {
+        ...sat,
+        azimuth: azEl.azimuth,
+        elevation: azEl.elevation,
+      };
+    });
+
+    // Select SVG and group
+    const svg = d3.select(svgRef.current);
+    const g = svg.select('g');
+    const radius = svg.node().radius;
+
+    // Bind data
+    const sats = g.selectAll('.satellite-group')
+                 .data(updatedSatData, d => d.id);
+
+    // Enter new satellites
+    const satsEnter = sats.enter()
+                          .append('g')
+                          .attr('class', 'satellite-group');
+
+    // Append trail path
+    satsEnter.append('path')
+             .attr('class', 'trail')
+             .attr('stroke', 'blue')
+             .attr('fill', 'none')
+             .attr('stroke-width', 1);
+
+    // Append satellite circle
+    satsEnter.append('circle')
+             .attr('class', 'satellite')
+             .attr('r', 5)
+             .attr('fill', 'red');
+
+    // Merge and update
+    sats.merge(satsEnter).each(function(d) {
+      const group = d3.select(this);
+
+      // Calculate current position
+      const azRad = deg2rad(d.azimuth);
+      const elRatio = d.elevation / 90; // 0 to 1
+      const x = radius * elRatio * Math.sin(azRad);
+      const y = -radius * elRatio * Math.cos(azRad);
+
+      // Update satellite position
+      group.select('.satellite')
+           .attr('cx', x)
+           .attr('cy', y);
+
+      // Update trail
+      const line = d3.line()
+                     .x(point => radius * (point.elevation / 90) * Math.sin(deg2rad(point.azimuth)))
+                     .y(point => -radius * (point.elevation / 90) * Math.cos(deg2rad(point.azimuth)));
+
+      group.select('.trail')
+           .attr('d', line(d.history));
+    });
+
+    // Remove satellites no longer present
+    sats.exit().remove();
+  }, [satellites, observerPos, observerLat, observerLon]);
+
+  return <svg ref={svgRef}></svg>;
+};
+
+const satelliteECEF = {
+  x: 15600e3,   // Example value
+  y: 7540e3,    // Example value
+  z: 20140e3    // Example value
+};
+
+// Observer position in ECEF coordinates (in meters)
+const observerECEF = {
+  x: 1917020.0, // Example value
+  y: 6029070.0, // Example value
+  z: 0.0        // Example value
+};
+
+const observerLatitude = 45.0;  // Example latitude in degrees
+const observerLongitude = -93.0; // Example longitude in degrees
+
+// Function to generate initial satellite data
+function generateInitialSatellites() {
+  const satellites = [];
+  const numSatellites = 6; // Adjust as needed
+
+  for (let i = 1; i <= numSatellites; i++) {
+    satellites.push({
+      id: `sat${i}`,
+      prn: i,
+      azimuth: Math.random() * 360,
+      elevation: Math.random() * 90,
+      signalStrength: 40 + Math.random() * 20, // 40 to 60 dB-Hz
+      health: 'Healthy',
+      blockType: ['Block IIR-M', 'Block IIF', 'Block IIIA'][i % 3],
+      positionECEF: {
+        x: 15600e3 + Math.random() * 1000, // Example initial positions
+        y: 7540e3 + Math.random() * 1000,
+        z: 20140e3 + Math.random() * 1000,
+      },
+      history: [],
+    });
+  }
+
+  return satellites;
+}
+
+// Function to simulate satellite movement
+function updateSatellitePositions(satellites) {
+  return satellites.map((sat) => {
+    // Simulate movement by adjusting ECEF positions slightly
+    const delta = 1000; // meters per update
+    const angle = deg2rad(sat.azimuth);
+    const elevationRad = deg2rad(sat.elevation);
+
+    // Simple circular movement in azimuth
+    const newAzimuth = (sat.azimuth + 5) % 360;
+
+    // Update positionECEF based on new azimuth and elevation
+    const r = Math.sqrt(
+      sat.positionECEF.x ** 2 +
+        sat.positionECEF.y ** 2 +
+        sat.positionECEF.z ** 2
+    );
+
+    const newElevation = sat.elevation; // Keep elevation constant for simplicity
+
+    // Convert spherical to Cartesian coordinates for new position
+    const newX =
+      r * Math.cos(deg2rad(newElevation)) * Math.sin(deg2rad(newAzimuth));
+    const newY =
+      r * Math.cos(deg2rad(newElevation)) * Math.cos(deg2rad(newAzimuth));
+    const newZ = r * Math.sin(deg2rad(newElevation));
+
+    // Calculate azimuth and elevation from new positions
+    const azEl = ECEFToAzEl(
+      { x: newX, y: newY, z: newZ },
+      observerECEF,
+      observerLatitude,
+      observerLongitude
+    );
+
+    // Update history
+    const newHistory = [...sat.history, { azimuth: azEl.azimuth, elevation: azEl.elevation }];
+    if (newHistory.length > 60) newHistory.shift(); // Keep last 60 points (1 minute at 1Hz)
+
+    return {
+      ...sat,
+      azimuth: azEl.azimuth,
+      elevation: azEl.elevation,
+      positionECEF: { x: newX, y: newY, z: newZ },
+      history: newHistory,
+    };
+  });
+}
+
+//--------------------------------------
+//  SV Data Table Component
+//--------------------------------------
 // Function to create GPS satellite data, mimicking GPS-153 receiver output
 function createSatelliteData(prn, azimuth, elevation, signalStrength, health, blockType) {
   return { prn, azimuth, elevation, signalStrength, health, blockType };
 }
 
-
 // Mock dataset of satellites the receiver is currently seeing
-const satellites = [
+// Mock dataset of satellites the receiver is currently seeing (for the table)
+const initialTableSatellites = [
   createSatelliteData(1, 45, 30, 48, 'Healthy', 'Block IIR-M'),
   createSatelliteData(3, 120, 45, 40, 'Healthy', 'Block IIF'),
   createSatelliteData(6, 90, 20, 35, 'Healthy', 'Block IIR-M'),
@@ -52,7 +351,7 @@ const satellites = [
   createSatelliteData(17, 320, 70, 55, 'Healthy', 'Block IIR-M'),
 ];
 
-function GPSSatelliteTable() {
+function GPSSatelliteTable({tableSatellites}) {
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 700 }} size="small" aria-label="GPS Satellite table">
@@ -67,7 +366,7 @@ function GPSSatelliteTable() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {satellites.map((satellite) => (
+          {tableSatellites.map((satellite) => (
             <TableRow key={satellite.prn}>
               <TableCell component="th" scope="row">{satellite.prn}</TableCell>
               <TableCell align="right">{satellite.azimuth}</TableCell>
@@ -230,8 +529,16 @@ function SelectSVsOfInterest() {
   );
 }
 
-
+//--------------------------------------
+//  Main App Component
+//--------------------------------------
 function App() {
+  // State for table satellites
+const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
+
+// State for sky plot satellites
+const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
+
   // State to track the current theme mode
   const [darkMode, setDarkMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -240,18 +547,31 @@ function App() {
   const handleThemeChange = () => {
     setDarkMode(!darkMode);
   };
-  
+
   const handleButtonClick = () => {
     setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000); // Confetti will disappear after 3 seconds
+    setTimeout(() => setShowConfetti(false), 3000); // Confetti disappears after 3 seconds
   };
-  
+
   // Define the light and dark themes
   const theme = createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
     },
   });
+
+  // Effect to update satellite positions every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Update skySatellites
+      setSkySatellites((prevSatellites) => updateSatellitePositions(prevSatellites));
+
+      // Optionally, update tableSatellites if needed
+      // For now, we'll keep tableSatellites static
+    }, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -267,11 +587,11 @@ function App() {
       {/*Title Banner of Page*/}
       <Container style={{ marginTop: '50px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-           {/* Logo and Title */}
-           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/* Logo and Title */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Logo Image */}
-            <img src={logo} className='Logo' alt='MSGCT Logo'/>
-            <Typography variant="h4">
+            <img src={logo} className='Logo' alt='MSGCT Logo' />
+            <Typography variant="h4" sx={{ ml: 2 }}>
               Multi-Source GNSS Constellation Tracker
             </Typography>
           </Box>
@@ -288,23 +608,38 @@ function App() {
       </Container>
 
       {/*Body of Page */}
-      <Stack spacing={2}>
-        <Stack 
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={{ xs: 1, sm: 2, md: 4 }}
-          alignItems='center'
-        >
-          <Container>
-            <GPSSatelliteTable />
-          </Container>
-          <Container>
-            <SelectSVsOfInterest />
-          </Container>
-        </Stack>
+      <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
+        <Grid container spacing={4}>
+          {/* Satellite Table */}
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>
+              GPS Satellite Data
+            </Typography>
+            <GPSSatelliteTable tableSatellites={tableSatellites} />
+          </Grid>
+
+          {/* Sky Plot */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <SkyPlot
+              satellites={skySatellites}
+              observerPos={observerECEF}
+              observerLat={observerLatitude}
+              observerLon={observerLongitude}
+            />
+          </Box>
+        </Grid>
+        {/* Select SVs of Interest */}
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom>
+              Select SVs of Interest
+          </Typography>
+          <SelectSVsOfInterest />
+        </Grid>
       </Stack>
     </ThemeProvider>
   );
 }
 
 export default App;
+
 
