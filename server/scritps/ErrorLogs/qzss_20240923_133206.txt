@@ -1,0 +1,1 @@
+Failed to fetch qzss at 20240923_133206: HTTPSConnectionPool(host='sys.qzss.go.jp', port=443): Max retries exceeded with url: /archives/almanac/2024/q2024259.alm (Caused by SSLError(SSLError(1, '[SSL: WRONG_SIGNATURE_TYPE] wrong signature type (_ssl.c:1007)')))
