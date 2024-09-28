@@ -36,6 +36,7 @@ import {pink} from '@mui/material/colors';
 import './App.css';
 import logo from './logo_msgct.png';
 import * as d3 from 'd3';
+import { Select, MenuItem, TextField } from '@mui/material';
 
 //set meta data
 const meta = {
@@ -534,10 +535,10 @@ function SelectSVsOfInterest() {
 //--------------------------------------
 function App() {
   // State for table satellites
-const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
+  const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
 
-// State for sky plot satellites
-const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
+  // State for sky plot satellites
+  const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
 
   // State to track the current theme mode
   const [darkMode, setDarkMode] = useState(false);
@@ -584,7 +585,7 @@ const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
         <title>Multi-Source GNSS Constellation Tracker</title>
       </Helmet>
 
-      {/*Title Banner of Page*/}
+      {/* Title Banner of Page */}
       <Container style={{ marginTop: '50px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo and Title */}
@@ -607,7 +608,7 @@ const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
         </Button>
       </Container>
 
-      {/*Body of Page */}
+      {/* Body of Page */}
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={4}>
           {/* Satellite Table */}
@@ -628,18 +629,147 @@ const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
             />
           </Box>
         </Grid>
+
         {/* Select SVs of Interest */}
         <Grid item xs={12} md={6}>
           <Typography variant="h6" gutterBottom>
-              Select SVs of Interest
+            Select SVs of Interest
           </Typography>
           <SelectSVsOfInterest />
         </Grid>
+
+        {/* Add the SerialPortComponent here */}
+        <Grid item xs={12} md={12}>
+          <Typography variant="h6" gutterBottom>
+            Serial Port Reader
+          </Typography>
+          <SerialPortComponent />
+        </Grid>
+
       </Stack>
     </ThemeProvider>
   );
 }
 
+//--------------------------------------
+//  SerialPortComponent
+//--------------------------------------
+function SerialPortComponent() {
+  const [ports, setPorts] = useState([]); // Available serial ports
+  const [selectedPort, setSelectedPort] = useState(null); // Selected COM port
+  const [serialData, setSerialData] = useState(''); // Serial data to display
+  const [isPortOpen, setIsPortOpen] = useState(false); // Track if port is open
+
+  // Request available ports on page load
+  useEffect(() => {
+    async function getPorts() {
+      if ("serial" in navigator) {
+        try {
+          const availablePorts = await navigator.serial.getPorts();
+          setPorts(availablePorts);
+        } catch (error) {
+          console.error('Error accessing serial ports:', error);
+        }
+      }
+    }
+    getPorts();
+  }, []);
+
+  // Function to handle selecting a port
+  const handlePortSelection = async (event) => {
+    const selectedPort = event.target.value;
+    setSelectedPort(selectedPort);
+  };
+
+  // Function to start reading from the selected port
+  const handleStartReading = async () => {
+    if (selectedPort) {
+      try {
+        await selectedPort.open({ baudRate: 9600 }); // Open the port with a baud rate of 9600 (or as required)
+        setIsPortOpen(true);
+
+        const reader = selectedPort.readable.getReader();
+        const decoder = new TextDecoderStream();
+
+        // Continuously read data from the port
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break; // Exit the loop when no more data
+          }
+          setSerialData((prevData) => prevData + value); // Append new data to the displayed data
+        }
+        reader.releaseLock();
+      } catch (error) {
+        console.error('Error reading from serial port:', error);
+      }
+    }
+  };
+
+  // Function to request a new serial port
+  const handleRequestPort = async () => {
+    if ("serial" in navigator) {
+      try {
+        const port = await navigator.serial.requestPort(); // User selects a port from the browser dialog
+        setPorts((prevPorts) => [...prevPorts, port]); // Add new port to the list
+        setSelectedPort(port);
+      } catch (error) {
+        console.error('Error requesting serial port:', error);
+      }
+    }
+  };
+
+  return (
+    <Container style={{ marginTop: '20px' }}>
+      <Typography variant="h6">Serial Port Reader</Typography>
+      <Box sx={{ mt: 2 }}>
+        {/* Dropdown to select COM port */}
+        <Select
+          value={selectedPort}
+          onChange={handlePortSelection}
+          displayEmpty
+          fullWidth
+          variant="outlined"
+        >
+          {ports.map((port, index) => (
+            <MenuItem key={index} value={port}>
+              Port {index + 1} {/* You can customize this to show actual port info */}
+            </MenuItem>
+          ))}
+          <MenuItem value="">
+            <em>Select a COM port</em>
+          </MenuItem>
+        </Select>
+
+        {/* Button to request a new port */}
+        <Button variant="contained" color="secondary" onClick={handleRequestPort} sx={{ mt: 2 }}>
+          Request a COM Port
+        </Button>
+
+        {/* Button to start reading from the selected COM port */}
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleStartReading}
+          sx={{ mt: 2 }}
+          disabled={isPortOpen || !selectedPort} // Disable button if port is already open or not selected
+        >
+          Start Reading
+        </Button>
+
+        {/* Text field to display serial data */}
+        <TextField
+          multiline
+          rows={6}
+          fullWidth
+          value={serialData}
+          sx={{ mt: 2 }}
+          variant="outlined"
+          label="Serial Data"
+        />
+      </Box>
+    </Container>
+  );
+}
+
 export default App;
-
-
