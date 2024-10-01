@@ -1,4 +1,5 @@
 import requests
+import httpx
 import schedule
 import time
 import os
@@ -31,7 +32,14 @@ urls = {
 # Function to fetch data and save to files
 def fetch_and_save(name, url, save_directory):
     try:
-        response = requests.get(url)
+        if name == "qzss":
+            # Use httpx to handle SSL issues for QZSS
+            with httpx.Client(verify=False) as client:
+                response = client.get(url)
+        else:
+            # For other URLs, use the default requests settings
+            response = requests.get(url)
+        
         response.raise_for_status()  # Check if the request was successful
         content = response.text
 
@@ -47,13 +55,16 @@ def fetch_and_save(name, url, save_directory):
         with open(file_path, "w") as file:
             file.write(content)
         print(f"Saved {name} data to {file_path}")
-    except requests.exceptions.RequestException as e:
-        # Send an Error message to console and Error Log folder
+    except (requests.exceptions.RequestException, httpx.RequestError) as e:
+        # Log error to file and print to console
+        os.makedirs("ErrorLogs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_name = f"{name}_{timestamp}.txt"
-        file_path = os.path.join("ErrorLogs", file_name)
-        with open(file_path, "w") as file:
+        error_log_path = os.path.join("ErrorLogs", file_name)
+
+        with open(error_log_path, "w") as file:
             file.write(f"Failed to fetch {name} at {timestamp}: {e}")
+
         print(f"Failed to fetch {name}: {e}")
 
 # Function to schedule each task based on its interval
@@ -78,4 +89,4 @@ def test_scraping():
 test_scraping()
 
 # Uncomment the line below to start the scheduled tasks
-#schedule_tasks()
+# schedule_tasks()
