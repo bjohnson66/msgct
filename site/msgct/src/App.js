@@ -27,18 +27,18 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import Grid from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
-import {pink} from '@mui/material/colors';
+import { pink } from '@mui/material/colors';
 import './App.css';
 import logo from './logo_msgct.png';
 import * as d3 from 'd3';
 import { Select, MenuItem, TextField } from '@mui/material';
 
-//set meta data
+// Set meta data
 const meta = {
   title: 'Multi-Source GNSS Constellation Tracker',
   description: "Monitor the status of GNSS Constellations in real time or in the past.",
@@ -59,36 +59,36 @@ const deg2rad = (deg) => (deg * Math.PI) / 180;
 
 // Utility function to calculate azimuth and elevation
 function ECEFToAzEl(satPosECEF, observerPosECEF, observerLat, observerLon) {
-    // Translate satellite position relative to observer
-    const dx = satPosECEF.x - observerPosECEF.x;
-    const dy = satPosECEF.y - observerPosECEF.y;
-    const dz = satPosECEF.z - observerPosECEF.z;
+  // Translate satellite position relative to observer
+  const dx = satPosECEF.x - observerPosECEF.x;
+  const dy = satPosECEF.y - observerPosECEF.y;
+  const dz = satPosECEF.z - observerPosECEF.z;
 
-    // Convert observer latitude and longitude to radians
-    const lat = deg2rad(observerLat);
-    const lon = deg2rad(observerLon);
+  // Convert observer latitude and longitude to radians
+  const lat = deg2rad(observerLat);
+  const lon = deg2rad(observerLon);
 
-    // Rotation matrix from ECEF to ENU
-    const t = [
-        [-Math.sin(lon), Math.cos(lon), 0],
-        [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)],
-        [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)],
-    ];
+  // Rotation matrix from ECEF to ENU
+  const t = [
+    [-Math.sin(lon), Math.cos(lon), 0],
+    [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)],
+    [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)],
+  ];
 
-    // Apply rotation
-    const east = t[0][0] * dx + t[0][1] * dy + t[0][2] * dz;
-    const north = t[1][0] * dx + t[1][1] * dy + t[1][2] * dz;
-    const up = t[2][0] * dx + t[2][1] * dy + t[2][2] * dz;
+  // Apply rotation
+  const east = t[0][0] * dx + t[0][1] * dy + t[0][2] * dz;
+  const north = t[1][0] * dx + t[1][1] * dy + t[1][2] * dz;
+  const up = t[2][0] * dx + t[2][1] * dy + t[2][2] * dz;
 
-    // Calculate azimuth and elevation
-    const azimuth = Math.atan2(east, north) * (180 / Math.PI);
-    const horizontalDist = Math.sqrt(east * east + north * north);
-    const elevation = Math.atan2(up, horizontalDist) * (180 / Math.PI);
+  // Calculate azimuth and elevation
+  const azimuth = Math.atan2(east, north) * (180 / Math.PI);
+  const horizontalDist = Math.sqrt(east * east + north * north);
+  const elevation = Math.atan2(up, horizontalDist) * (180 / Math.PI);
 
-    return {
-        azimuth: (azimuth + 360) % 360, // Normalize to [0, 360)
-        elevation,
-    };
+  return {
+    azimuth: (azimuth + 360) % 360, // Normalize to [0, 360)
+    elevation,
+  };
 }
 
 const SkyPlot = ({ satellites, observerPos, observerLat, observerLon }) => {
@@ -198,13 +198,6 @@ const SkyPlot = ({ satellites, observerPos, observerLat, observerLon }) => {
                           .append('g')
                           .attr('class', 'satellite-group');
 
-    // Append trail path
-    satsEnter.append('path')
-             .attr('class', 'trail')
-             .attr('stroke', 'blue')
-             .attr('fill', 'none')
-             .attr('stroke-width', 1);
-
     // Append satellite circle
     satsEnter.append('circle')
              .attr('class', 'satellite')
@@ -225,14 +218,6 @@ const SkyPlot = ({ satellites, observerPos, observerLat, observerLon }) => {
       group.select('.satellite')
            .attr('cx', x)
            .attr('cy', y);
-
-      // Update trail
-      const line = d3.line()
-                     .x(point => radius * (point.elevation / 90) * Math.sin(deg2rad(point.azimuth)))
-                     .y(point => -radius * (point.elevation / 90) * Math.cos(deg2rad(point.azimuth)));
-
-      group.select('.trail')
-           .attr('d', line(d.history));
     });
 
     // Remove satellites no longer present
@@ -336,23 +321,13 @@ function updateSatellitePositions(satellites) {
 //--------------------------------------
 //  SV Data Table Component
 //--------------------------------------
-// Function to create GPS satellite data, mimicking GPS-153 receiver output
-function createSatelliteData(prn, azimuth, elevation, signalStrength, health, blockType) {
-  return { prn, azimuth, elevation, signalStrength, health, blockType };
-}
+// Remove initialTableSatellites since we'll populate from serial data
+// function createSatelliteData(prn, azimuth, elevation, signalStrength, health, blockType) {
+//   return { prn, azimuth, elevation, signalStrength, health, blockType };
+// }
 
-// Mock dataset of satellites the receiver is currently seeing
-// Mock dataset of satellites the receiver is currently seeing (for the table)
-const initialTableSatellites = [
-  createSatelliteData(1, 45, 30, 48, 'Healthy', 'Block IIR-M'),
-  createSatelliteData(3, 120, 45, 40, 'Healthy', 'Block IIF'),
-  createSatelliteData(6, 90, 20, 35, 'Healthy', 'Block IIR-M'),
-  createSatelliteData(9, 180, 60, 50, 'Unhealthy', 'Block IIIA'),
-  createSatelliteData(12, 270, 15, 42, 'Healthy', 'Block IIF'),
-  createSatelliteData(17, 320, 70, 55, 'Healthy', 'Block IIR-M'),
-];
-
-function GPSSatelliteTable({tableSatellites}) {
+// function GPSSatelliteTable
+function GPSSatelliteTable({ tableSatellites }) {
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 700 }} size="small" aria-label="GPS Satellite table">
@@ -361,20 +336,16 @@ function GPSSatelliteTable({tableSatellites}) {
             <TableCell>PRN</TableCell>
             <TableCell align="right">Azimuth (°)</TableCell>
             <TableCell align="right">Elevation (°)</TableCell>
-            <TableCell align="right">Signal Strength (C/N0) dB-Hz</TableCell>
-            <TableCell align="right">Health</TableCell>
-            <TableCell align="right">Block Type</TableCell>
+            <TableCell align="right">Signal Strength (SNR) dB</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {tableSatellites.map((satellite) => (
-            <TableRow key={satellite.prn}>
-              <TableCell component="th" scope="row">{satellite.prn}</TableCell>
-              <TableCell align="right">{satellite.azimuth}</TableCell>
-              <TableCell align="right">{satellite.elevation}</TableCell>
-              <TableCell align="right">{satellite.signalStrength}</TableCell>
-              <TableCell align="right">{satellite.health}</TableCell>
-              <TableCell align="right">{satellite.blockType}</TableCell>
+            <TableRow key={satellite.PRN}>
+              <TableCell component="th" scope="row">{satellite.PRN}</TableCell>
+              <TableCell align="right">{satellite.Azimuth}</TableCell>
+              <TableCell align="right">{satellite.Elevation}</TableCell>
+              <TableCell align="right">{satellite.SNR}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -534,8 +505,8 @@ function SelectSVsOfInterest() {
 //  Main App Component
 //--------------------------------------
 function App() {
-  // State for table satellites
-  const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
+  // State for table satellites (initialize as empty array)
+  const [tableSatellites, setTableSatellites] = useState([]);
 
   // State for sky plot satellites
   const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
@@ -620,14 +591,19 @@ function App() {
           </Grid>
 
           {/* Sky Plot */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <SkyPlot
-              satellites={skySatellites}
-              observerPos={observerECEF}
-              observerLat={observerLatitude}
-              observerLon={observerLongitude}
-            />
-          </Box>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>
+              Sky Plot
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <SkyPlot
+                satellites={skySatellites}
+                observerPos={observerECEF}
+                observerLat={observerLatitude}
+                observerLon={observerLongitude}
+              />
+            </Box>
+          </Grid>
         </Grid>
 
         {/* Select SVs of Interest */}
@@ -640,10 +616,7 @@ function App() {
 
         {/* Add the SerialPortComponent here */}
         <Grid item xs={12} md={12}>
-          <Typography variant="h6" gutterBottom>
-            Serial Port Reader
-          </Typography>
-          <SerialPortComponent />
+          <SerialPortComponent setTableSatellites={setTableSatellites} />
         </Grid>
 
       </Stack>
@@ -654,11 +627,15 @@ function App() {
 //--------------------------------------
 //  SerialPortComponent
 //--------------------------------------
-function SerialPortComponent() {
+function SerialPortComponent({ setTableSatellites }) {
   const [ports, setPorts] = useState([]); // Available serial ports
   const [selectedPort, setSelectedPort] = useState(null); // Selected COM port
   const [serialData, setSerialData] = useState(''); // Serial data to display
   const [isPortOpen, setIsPortOpen] = useState(false); // Track if port is open
+  const [parsedData, setParsedData] = useState([]); // Parsed satellite data
+  const [newDataReceived, setNewDataReceived] = useState(false); // Flag for new data
+
+  const dataBufferRef = useRef(''); // Buffer for incoming data
 
   // Request available ports on page load
   useEffect(() => {
@@ -685,11 +662,12 @@ function SerialPortComponent() {
   const handleStartReading = async () => {
     if (selectedPort) {
       try {
-        await selectedPort.open({ baudRate: 9600 }); // Open the port with a baud rate of 9600 (or as required)
+        await selectedPort.open({ baudRate: 9600 }); // Open the port with a baud rate of 9600
         setIsPortOpen(true);
 
-        const reader = selectedPort.readable.getReader();
-        const decoder = new TextDecoderStream();
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = selectedPort.readable.pipeTo(textDecoder.writable);
+        const reader = textDecoder.readable.getReader();
 
         // Continuously read data from the port
         while (true) {
@@ -697,7 +675,48 @@ function SerialPortComponent() {
           if (done) {
             break; // Exit the loop when no more data
           }
-          setSerialData((prevData) => prevData + value); // Append new data to the displayed data
+          if (value) {
+            // Append new data to the buffer
+            dataBufferRef.current += value;
+
+            // Process complete lines
+            let lines = dataBufferRef.current.split('\n');
+            dataBufferRef.current = lines.pop(); // Keep the incomplete line in the buffer
+
+            lines.forEach((line) => {
+              line = line.trim();
+              if (line) {
+                // Update serialData state for display
+                setSerialData((prevData) => prevData + line + '\n');
+
+                // Parse the line if it's a GSV sentence
+                if (
+                  line.startsWith('$GPGSV') ||
+                  line.startsWith('$GLGSV') ||
+                  line.startsWith('$GAGSV') ||
+                  line.startsWith('$GBGSV')
+                ) {
+                  const satellites = parseGsvSentence(line);
+                  if (satellites.length > 0) {
+                    setParsedData((prevData) => {
+                      // Update parsedData with new satellite info
+                      const updatedData = [...prevData];
+                      satellites.forEach((sat) => {
+                        const index = updatedData.findIndex((s) => s.PRN === sat.PRN);
+                        if (index !== -1) {
+                          updatedData[index] = { ...updatedData[index], ...sat };
+                        } else {
+                          updatedData.push(sat);
+                        }
+                      });
+                      return updatedData;
+                    });
+                    setNewDataReceived(true);
+                  }
+                }
+              }
+            });
+          }
         }
         reader.releaseLock();
       } catch (error) {
@@ -719,26 +738,64 @@ function SerialPortComponent() {
     }
   };
 
+  // Function to parse GSV sentences manually
+  function parseGsvSentence(line) {
+    const fields = line.split(',');
+    const satellites = [];
+
+    // Each GSV sentence contains up to 4 satellites
+    for (let i = 4; i < fields.length - 4; i += 4) {
+      const prn = parseInt(fields[i], 10);
+      const elevation = parseInt(fields[i + 1], 10);
+      const azimuth = parseInt(fields[i + 2], 10);
+      const snr = parseInt(fields[i + 3], 10);
+
+      if (!isNaN(prn)) {
+        satellites.push({
+          PRN: prn,
+          Elevation: isNaN(elevation) ? 'N/A' : elevation,
+          Azimuth: isNaN(azimuth) ? 'N/A' : azimuth,
+          SNR: isNaN(snr) ? 'N/A' : snr,
+        });
+      }
+    }
+
+    return satellites;
+  }
+
+  // Effect to update the display every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (newDataReceived) {
+        // Update the tableSatellites state in the main App component
+        setTableSatellites(parsedData);
+        setNewDataReceived(false);
+      }
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [newDataReceived, parsedData, setTableSatellites]);
+
   return (
     <Container style={{ marginTop: '20px' }}>
       <Typography variant="h6">Serial Port Reader</Typography>
       <Box sx={{ mt: 2 }}>
         {/* Dropdown to select COM port */}
         <Select
-          value={selectedPort}
+          value={selectedPort || ''}
           onChange={handlePortSelection}
           displayEmpty
           fullWidth
           variant="outlined"
         >
-          {ports.map((port, index) => (
-            <MenuItem key={index} value={port}>
-              Port {index + 1} {/* You can customize this to show actual port info */}
-            </MenuItem>
-          ))}
-          <MenuItem value="">
+          <MenuItem value="" disabled>
             <em>Select a COM port</em>
           </MenuItem>
+          {ports.map((port, index) => (
+            <MenuItem key={index} value={port}>
+              {port.getInfo ? JSON.stringify(port.getInfo()) : `Port ${index + 1}`}
+            </MenuItem>
+          ))}
         </Select>
 
         {/* Button to request a new port */}
@@ -767,6 +824,14 @@ function SerialPortComponent() {
           variant="outlined"
           label="Serial Data"
         />
+      </Box>
+
+      {/* Add the parsed satellite data table */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Parsed Satellite Data
+        </Typography>
+        <GPSSatelliteTable tableSatellites={parsedData} />
       </Box>
     </Container>
   );
