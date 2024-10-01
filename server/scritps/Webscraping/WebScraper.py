@@ -3,6 +3,7 @@ import httpx
 import schedule
 import time
 import os
+import json
 from datetime import datetime
 
 # List of URLs with their corresponding fetch intervals in hours and save directories
@@ -22,48 +23,78 @@ urls = {
         "interval_hours": 1,  # Set the interval in hours
         "save_directory": "GLONASS_Data"  # Set the save directory
     },
-    "qzss": {
-        "url": "https://sys.qzss.go.jp/archives/almanac/2024/q2024259.alm",
-        "interval_hours": 1,  # Set the interval in hours
-        "save_directory": "QZSS_Data"  # Set the save directory
+    "qzss_almanac": {
+        "url": "https://sys.qzss.go.jp/dod/api/get/almanac",
+        "interval_hours": 1,
+        "save_directory": "QZSS_Almanac_Data"
+    },
+    "qzss_ephemeris": {
+        "url": "https://sys.qzss.go.jp/dod/api/get/ephemeris",
+        "interval_hours": 1,
+        "save_directory": "QZSS_Ephemeris_Data"
     }
 }
 
-# Function to fetch data and save to files
+# Function to fetch data and save to files in JSON format
 def fetch_and_save(name, url, save_directory):
     try:
-        if name == "qzss":
-            # Use httpx to handle SSL issues for QZSS
+        # Special handling for QZSS API to get the latest available data using httpx
+        if name.startswith("qzss"):
             with httpx.Client(verify=False) as client:
                 response = client.get(url)
+            response.raise_for_status()
+
+            # Extracting the filename from Content-Disposition header
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if 'filename=' in content_disposition:
+                file_name = content_disposition.split("filename=")[-1].strip()
+            else:
+                # If filename is not provided, generate a default name
+                file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.dat"
+
+            content = response.content
+
         else:
             # For other URLs, use the default requests settings
             response = requests.get(url)
-        
-        response.raise_for_status()  # Check if the request was successful
-        content = response.text
+            response.raise_for_status()
+            content = response.text
+            file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
         # Ensure the save directory exists
         os.makedirs(save_directory, exist_ok=True)
-
-        # Create a timestamped filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_name = f"{name}_{timestamp}.txt"
         file_path = os.path.join(save_directory, file_name)
 
         # Save the content to the designated directory
-        with open(file_path, "w") as file:
-            file.write(content)
+        if name.startswith("qzss"):
+            with open(file_path, "wb") as file:
+                file.write(content)
+        else:
+            data = {
+                "name": name,
+                "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+                "url": url,
+                "content": content
+            }
+            with open(file_path, "w") as file:
+                json.dump(data, file, indent=4)
+
         print(f"Saved {name} data to {file_path}")
+
     except (requests.exceptions.RequestException, httpx.RequestError) as e:
         # Log error to file and print to console
         os.makedirs("ErrorLogs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_name = f"{name}_{timestamp}.txt"
-        error_log_path = os.path.join("ErrorLogs", file_name)
+        error_log_path = os.path.join("ErrorLogs", f"{name}_{timestamp}.json")
+
+        error_data = {
+            "name": name,
+            "timestamp": timestamp,
+            "error": str(e)
+        }
 
         with open(error_log_path, "w") as file:
-            file.write(f"Failed to fetch {name} at {timestamp}: {e}")
+            json.dump(error_data, file, indent=4)
 
         print(f"Failed to fetch {name}: {e}")
 
