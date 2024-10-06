@@ -3,15 +3,13 @@
   Acknowledgments
   -----------------------------------
   
-  This project utilized OpenAI's ChatGPT (GPT-4) to assist in the development and optimization of various components, including:
+  This project utilized OpenAI's ChatGPT (GPT-4o) to assist in the development and optimization of various components, including:
 
   - Generating and refining React components for the application structure.
-  - Integrating satellite tracking functionalities using satellite.js for realistic orbit simulations.
-  - Enhancing visualizations with D3.js to create dynamic and interactive sky plots.
-  - Implementing performance optimizations for efficient rendering and state management.
-  - Debugging and troubleshooting code to ensure application stability.
+  - Creating stubs and doing basic JSON convsersion during early development.
+  - Assisting in reasearch for phyiscs formulas and calculations need to solve the problem of GPS (calculating and converting SV position)
 
-  All AI-assisted code has been thoroughly reviewed and customized to meet the project's specific requirements and standards.
+  All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 
 import { ThemeProvider, createTheme, CssBaseline, Switch } from '@mui/material';  // Add CssBaseline and Switch imports
@@ -50,307 +48,493 @@ const meta = {
   }
 };
 
-//--------------------------------------
-//  LIVE SKY AND SV DATA PLOT COMPONENT
-//   - AI Generated Component Using GPT o1
-//--------------------------------------
-// Utility function to convert degrees to radians
-const deg2rad = (deg) => (deg * Math.PI) / 180;
-
-// Utility function to calculate azimuth and elevation
-function ECEFToAzEl(satPosECEF, observerPosECEF, observerLat, observerLon) {
-  // Translate satellite position relative to observer
-  const dx = satPosECEF.x - observerPosECEF.x;
-  const dy = satPosECEF.y - observerPosECEF.y;
-  const dz = satPosECEF.z - observerPosECEF.z;
-
-  // Convert observer latitude and longitude to radians
-  const lat = deg2rad(observerLat);
-  const lon = deg2rad(observerLon);
-
-  // Rotation matrix from ECEF to ENU
-  const t = [
-    [-Math.sin(lon), Math.cos(lon), 0],
-    [-Math.sin(lat) * Math.cos(lon), -Math.sin(lat) * Math.sin(lon), Math.cos(lat)],
-    [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)],
-  ];
-
-  // Apply rotation
-  const east = t[0][0] * dx + t[0][1] * dy + t[0][2] * dz;
-  const north = t[1][0] * dx + t[1][1] * dy + t[1][2] * dz;
-  const up = t[2][0] * dx + t[2][1] * dy + t[2][2] * dz;
-
-  // Calculate azimuth and elevation
-  const azimuth = Math.atan2(east, north) * (180 / Math.PI);
-  const horizontalDist = Math.sqrt(east * east + north * north);
-  const elevation = Math.atan2(up, horizontalDist) * (180 / Math.PI);
-
-  return {
-    azimuth: (azimuth + 360) % 360, // Normalize to [0, 360)
-    elevation,
-  };
-}
-
-const SkyPlot = ({ satellites, observerPos, observerLat, observerLon }) => {
-  const svgRef = useRef();
-
-  useEffect(() => {
-    // Initial setup
-    const width = 500;
-    const height = 500;
-    const svg = d3.select(svgRef.current)
-                  .attr('width', width)
-                  .attr('height', height);
-
-    // Clear previous content
-    svg.selectAll('*').remove();
-
-    const radius = Math.min(width, height) / 2 - 50; // Padding
-
-    const g = svg.append('g')
-                 .attr('transform', `translate(${width / 2}, ${height / 2})`);
-
-    // Draw horizon circle
-    g.append('circle')
-     .attr('r', radius)
-     .attr('fill', 'none')
-     .attr('stroke', '#ccc');
-
-    // Add elevation rings
-    const elevationLevels = [30, 60];
-    elevationLevels.forEach((el) => {
-      const elRadius = (el / 90) * radius;
-      g.append('circle')
-       .attr('r', elRadius)
-       .attr('fill', 'none')
-       .attr('stroke', '#eee')
-       .attr('stroke-dasharray', '4 2');
-      
-      // Add elevation labels
-      g.append('text')
-       .attr('x', 0)
-       .attr('y', -elRadius)
-       .attr('dy', '-0.35em')
-       .attr('text-anchor', 'middle')
-       .attr('font-size', '10px')
-       .attr('fill', '#666')
-       .text(`${el}°`);
-    });
-
-    // Add azimuth lines every 45 degrees
-    for (let az = 0; az < 360; az += 45) {
-      const azRad = deg2rad(az);
-      const x = radius * Math.sin(azRad);
-      const y = -radius * Math.cos(azRad);
-      g.append('line')
-       .attr('x1', 0)
-       .attr('y1', 0)
-       .attr('x2', x)
-       .attr('y2', y)
-       .attr('stroke', '#eee')
-       .attr('stroke-dasharray', '2 2');
-      
-      // Add azimuth labels
-      const labelX = (radius + 15) * Math.sin(azRad);
-      const labelY = -(radius + 15) * Math.cos(azRad);
-      g.append('text')
-       .attr('x', labelX)
-       .attr('y', labelY)
-       .attr('dy', '0.35em')
-       .attr('text-anchor', 'middle')
-       .attr('font-size', '10px')
-       .attr('fill', '#666')
-       .text(`${az}°`);
-    }
-
-    // Save radius and group for later use
-    svg.node().radius = radius;
-    svg.node().g = g;
-  }, []);
-
-  useEffect(() => {
-    // Update satellite data with azimuth and elevation
-    const updatedSatData = satellites.map((sat) => {
-      const azEl = ECEFToAzEl(
-        sat.positionECEF,
-        observerPos,
-        observerLat,
-        observerLon
-      );
-      return {
-        ...sat,
-        azimuth: azEl.azimuth,
-        elevation: azEl.elevation,
-      };
-    });
-
-    // Select SVG and group
-    const svg = d3.select(svgRef.current);
-    const g = svg.select('g');
-    const radius = svg.node().radius;
-
-    // Bind data
-    const sats = g.selectAll('.satellite-group')
-                 .data(updatedSatData, d => d.id);
-
-    // Enter new satellites
-    const satsEnter = sats.enter()
-                          .append('g')
-                          .attr('class', 'satellite-group');
-
-    // Append trail path
-    satsEnter.append('path')
-             .attr('class', 'trail')
-             .attr('stroke', 'blue')
-             .attr('fill', 'none')
-             .attr('stroke-width', 1);
-
-    // Append satellite circle
-    satsEnter.append('circle')
-             .attr('class', 'satellite')
-             .attr('r', 5)
-             .attr('fill', 'red');
-
-    // Merge and update
-    sats.merge(satsEnter).each(function(d) {
-      const group = d3.select(this);
-
-      // Calculate current position
-      const azRad = deg2rad(d.azimuth);
-      const elRatio = d.elevation / 90; // 0 to 1
-      const x = radius * elRatio * Math.sin(azRad);
-      const y = -radius * elRatio * Math.cos(azRad);
-
-      // Update satellite position
-      group.select('.satellite')
-           .attr('cx', x)
-           .attr('cy', y);
-
-      // Update trail
-      const line = d3.line()
-                     .x(point => radius * (point.elevation / 90) * Math.sin(deg2rad(point.azimuth)))
-                     .y(point => -radius * (point.elevation / 90) * Math.cos(deg2rad(point.azimuth)));
-
-      group.select('.trail')
-           .attr('d', line(d.history));
-    });
-
-    // Remove satellites no longer present
-    sats.exit().remove();
-  }, [satellites, observerPos, observerLat, observerLon]);
-
-  return <svg ref={svgRef}></svg>;
-};
-
-const satelliteECEF = {
-  x: 15600e3,   // Example value
-  y: 7540e3,    // Example value
-  z: 20140e3    // Example value
-};
-
-// Observer position in ECEF coordinates (in meters)
-const observerECEF = {
-  x: 1917020.0, // Example value
-  y: 6029070.0, // Example value
-  z: 0.0        // Example value
-};
-
-const observerLatitude = 45.0;  // Example latitude in degrees
-const observerLongitude = -93.0; // Example longitude in degrees
-
-// Function to generate initial satellite data
-function generateInitialSatellites() {
-  const satellites = [];
-  const numSatellites = 6; // Adjust as needed
-
-  for (let i = 1; i <= numSatellites; i++) {
-    satellites.push({
-      id: `sat${i}`,
-      prn: i,
-      azimuth: Math.random() * 360,
-      elevation: Math.random() * 90,
-      signalStrength: 40 + Math.random() * 20, // 40 to 60 dB-Hz
-      health: 'Healthy',
-      blockType: ['Block IIR-M', 'Block IIF', 'Block IIIA'][i % 3],
-      positionECEF: {
-        x: 15600e3 + Math.random() * 1000, // Example initial positions
-        y: 7540e3 + Math.random() * 1000,
-        z: 20140e3 + Math.random() * 1000,
-      },
-      history: [],
-    });
+//-------------------------------------
+// Retreiving Almanac Data from Server
+//-------------------------------------
+//Stub
+const getAlmanacData = () => ([
+  {
+    ID: 2,
+    Health: 0,
+    Eccentricity: 0.01620483398,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9670754177,
+    RateOfRightAscen: -7.966046104e-9,
+    SqrtA: 5153.639648,
+    RightAscenAtWeek: -0.442486046,
+    ArgumentOfPerigee: -1.12224439,
+    MeanAnomaly: 2.634982016,
+    Af0: -0.0003423690796,
+    Af1: 7.275957614e-11,
+    week: 287
+  },
+  {
+    ID: 3,
+    Health: 0,
+    Eccentricity: 0.005696773529,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9863939882,
+    RateOfRightAscen: -7.497455156e-9,
+    SqrtA: 5153.608887,
+    RightAscenAtWeek: 0.6940551502,
+    ArgumentOfPerigee: 1.164144986,
+    MeanAnomaly: -0.9065320872,
+    Af0: 0.0005626678467,
+    Af1: 1.091393642e-10,
+    week: 287
+  },
+  {
+    ID: 4,
+    Health: 0,
+    Eccentricity: 0.003071784973,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9655294527,
+    RateOfRightAscen: -7.794610391e-9,
+    SqrtA: 5153.643555,
+    RightAscenAtWeek: 1.771602501,
+    ArgumentOfPerigee: -3.0077753,
+    MeanAnomaly: 2.17010382,
+    Af0: 0.0004577636719,
+    Af1: 7.275957614e-11,
+    week: 287
+  },
+  {
+    ID: 5,
+    Health: 0,
+    Eccentricity: 0.00581407547,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9733311831,
+    RateOfRightAscen: -7.634603726e-9,
+    SqrtA: 5153.640137,
+    RightAscenAtWeek: 0.6409905003,
+    ArgumentOfPerigee: 1.335022057,
+    MeanAnomaly: 2.794177464,
+    Af0: -0.0001888275146,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 6,
+    Health: 0,
+    Eccentricity: 0.003101348877,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9897495712,
+    RateOfRightAscen: -7.760323249e-9,
+    SqrtA: 5153.666016,
+    RightAscenAtWeek: -0.3412556728,
+    ArgumentOfPerigee: -0.765144074,
+    MeanAnomaly: 0.5788586608,
+    Af0: -0.00002193450928,
+    Af1: -2.546585165e-10,
+    week: 287
+  },
+  {
+    ID: 7,
+    Health: 0,
+    Eccentricity: 0.01876735687,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9506570296,
+    RateOfRightAscen: -7.886042771e-9,
+    SqrtA: 5153.54541,
+    RightAscenAtWeek: 2.783763547,
+    ArgumentOfPerigee: -2.098882695,
+    MeanAnomaly: -0.3297077486,
+    Af0: -0.00002956390381,
+    Af1: 3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 8,
+    Health: 0,
+    Eccentricity: 0.009747505188,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9508308008,
+    RateOfRightAscen: -8.171768958e-9,
+    SqrtA: 5153.640625,
+    RightAscenAtWeek: -1.441800002,
+    ArgumentOfPerigee: 0.369953023,
+    MeanAnomaly: 2.489610372,
+    Af0: 0.000376701355,
+    Af1: 1.091393642e-10,
+    week: 287
+  },
+  {
+    ID: 9,
+    Health: 0,
+    Eccentricity: 0.003163337708,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9592197583,
+    RateOfRightAscen: -7.874613724e-9,
+    SqrtA: 5153.526367,
+    RightAscenAtWeek: 1.711028986,
+    ArgumentOfPerigee: 1.994511706,
+    MeanAnomaly: 2.992321642,
+    Af0: 0.0003890991211,
+    Af1: 1.455191523e-10,
+    week: 287
+  },
+  {
+    ID: 10,
+    Health: 0,
+    Eccentricity: 0.009766101837,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9860344615,
+    RateOfRightAscen: -7.486026109e-9,
+    SqrtA: 5153.645508,
+    RightAscenAtWeek: 0.6915129965,
+    ArgumentOfPerigee: -2.376095419,
+    MeanAnomaly: -1.830053311,
+    Af0: -0.000150680542,
+    Af1: -1.455191523e-10,
+    week: 287
+  },
+  {
+    ID: 11,
+    Health: 0,
+    Eccentricity: 0.00167798996,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9663803327,
+    RateOfRightAscen: -7.977475151e-9,
+    SqrtA: 5153.509766,
+    RightAscenAtWeek: -0.3111685271,
+    ArgumentOfPerigee: -2.480923681,
+    MeanAnomaly: 1.618308535,
+    Af0: -0.007419586182,
+    Af1: -3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 12,
+    Health: 0,
+    Eccentricity: 0.008731842041,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9617364455,
+    RateOfRightAscen: -7.714607059e-9,
+    SqrtA: 5153.540039,
+    RightAscenAtWeek: -2.383845093,
+    ArgumentOfPerigee: 1.463337527,
+    MeanAnomaly: -1.050197477,
+    Af0: -0.005435943604,
+    Af1: -3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 13,
+    Health: 0,
+    Eccentricity: 0.008687019348,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9719230367,
+    RateOfRightAscen: -7.760323249e-9,
+    SqrtA: 5153.63623,
+    RightAscenAtWeek: 1.879014862,
+    ArgumentOfPerigee: 0.96843323,
+    MeanAnomaly: 2.169297132,
+    Af0: 0.006799697876,
+    Af1: 3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 14,
+    Health: 0,
+    Eccentricity: 0.004916191101,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9450963492,
+    RateOfRightAscen: -7.840326581e-9,
+    SqrtA: 5153.647949,
+    RightAscenAtWeek: -2.430389201,
+    ArgumentOfPerigee: -2.854289212,
+    MeanAnomaly: -1.183823832,
+    Af0: 0.005121231079,
+    Af1: 7.275957614e-11,
+    week: 287
+  },
+  {
+    ID: 15,
+    Health: 0,
+    Eccentricity: 0.01615524292,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9362879439,
+    RateOfRightAscen: -8.068907531e-9,
+    SqrtA: 5153.648438,
+    RightAscenAtWeek: 1.579662781,
+    ArgumentOfPerigee: 1.364748177,
+    MeanAnomaly: 1.480484706,
+    Af0: 0.002126693726,
+    Af1: 3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 16,
+    Health: 0,
+    Eccentricity: 0.01402664185,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9611312421,
+    RateOfRightAscen: -7.703178011e-9,
+    SqrtA: 5153.585938,
+    RightAscenAtWeek: -2.366138775,
+    ArgumentOfPerigee: 0.846090023,
+    MeanAnomaly: -2.82675583,
+    Af0: -0.0001611709595,
+    Af1: 1.091393642e-10,
+    week: 287
+  },
+  {
+    ID: 17,
+    Health: 0,
+    Eccentricity: 0.01353311539,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9666260093,
+    RateOfRightAscen: -8.023191341e-9,
+    SqrtA: 5153.504395,
+    RightAscenAtWeek: -1.344935632,
+    ArgumentOfPerigee: -1.289951259,
+    MeanAnomaly: 2.397231847,
+    Af0: 0.006036758423,
+    Af1: -1.091393642e-10,
+    week: 287
+  },
+  {
+    ID: 18,
+    Health: 0,
+    Eccentricity: 0.004751205444,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9746134952,
+    RateOfRightAscen: -7.897471819e-9,
+    SqrtA: 5153.687988,
+    RightAscenAtWeek: -0.3390775399,
+    ArgumentOfPerigee: -2.982728645,
+    MeanAnomaly: 0.4922449224,
+    Af0: -0.00657081604,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 19,
+    Health: 0,
+    Eccentricity: 0.009968757629,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9658410425,
+    RateOfRightAscen: -8.034620388e-9,
+    SqrtA: 5153.692383,
+    RightAscenAtWeek: -1.30066965,
+    ArgumentOfPerigee: 2.660728251,
+    MeanAnomaly: -1.96586866,
+    Af0: 0.005474090576,
+    Af1: 3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 20,
+    Health: 0,
+    Eccentricity: 0.003812789917,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9557503252,
+    RateOfRightAscen: -7.828897534e-9,
+    SqrtA: 5153.565918,
+    RightAscenAtWeek: 0.5098950641,
+    ArgumentOfPerigee: -2.521754685,
+    MeanAnomaly: 0.9162408074,
+    Af0: 0.003700256348,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 21,
+    Health: 0,
+    Eccentricity: 0.02540922165,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9613169976,
+    RateOfRightAscen: -8.011762293e-9,
+    SqrtA: 5153.598145,
+    RightAscenAtWeek: -0.4504664163,
+    ArgumentOfPerigee: -0.509216832,
+    MeanAnomaly: 2.288360781,
+    Af0: 0.0001001358032,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 22,
+    Health: 0,
+    Eccentricity: 0.01401996613,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9604721098,
+    RateOfRightAscen: -7.680319916e-9,
+    SqrtA: 5153.643066,
+    RightAscenAtWeek: -2.362846484,
+    ArgumentOfPerigee: -1.106000523,
+    MeanAnomaly: 2.963684962,
+    Af0: -0.0006866455078,
+    Af1: -3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 23,
+    Health: 0,
+    Eccentricity: 0.004778385162,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9811808504,
+    RateOfRightAscen: -7.531742299e-9,
+    SqrtA: 5153.573242,
+    RightAscenAtWeek: 0.6618894905,
+    ArgumentOfPerigee: -2.938941657,
+    MeanAnomaly: -0.6640503961,
+    Af0: 0.003366470337,
+    Af1: 7.275957614e-11,
+    week: 287
+  },
+  {
+    ID: 24,
+    Health: 0,
+    Eccentricity: 0.01607322693,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9343345153,
+    RateOfRightAscen: -8.057478483e-9,
+    SqrtA: 5153.633789,
+    RightAscenAtWeek: 2.684435669,
+    ArgumentOfPerigee: 1.016209092,
+    MeanAnomaly: 0.5929940541,
+    Af0: -0.004854202271,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 25,
+    Health: 0,
+    Eccentricity: 0.0118522644,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9498301181,
+    RateOfRightAscen: -7.817468486e-9,
+    SqrtA: 5153.677246,
+    RightAscenAtWeek: -2.471912668,
+    ArgumentOfPerigee: 1.09335342,
+    MeanAnomaly: -1.199506688,
+    Af0: 0.004997253418,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 26,
+    Health: 0,
+    Eccentricity: 0.009325504303,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9306373819,
+    RateOfRightAscen: -7.954617056e-9,
+    SqrtA: 5153.65625,
+    RightAscenAtWeek: -2.536885143,
+    ArgumentOfPerigee: 0.560245287,
+    MeanAnomaly: -1.943929289,
+    Af0: 0.0006103515625,
+    Af1: -1.091393642e-10,
+    week: 287
+  },
+  {
+    ID: 27,
+    Health: 0,
+    Eccentricity: 0.01267242432,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9598669064,
+    RateOfRightAscen: -8.103194673e-9,
+    SqrtA: 5153.632812,
+    RightAscenAtWeek: -1.414163631,
+    ArgumentOfPerigee: 0.797909694,
+    MeanAnomaly: 2.540622723,
+    Af0: -0.0003433227539,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 28,
+    Health: 0,
+    Eccentricity: 0.000431060791,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9617124771,
+    RateOfRightAscen: -7.783181344e-9,
+    SqrtA: 5153.675293,
+    RightAscenAtWeek: 2.752217322,
+    ArgumentOfPerigee: 1.399021188,
+    MeanAnomaly: -1.476758361,
+    Af0: -0.004377365112,
+    Af1: -1.455191523e-10,
+    week: 287
+  },
+  {
+    ID: 29,
+    Health: 0,
+    Eccentricity: 0.002892017365,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9691007517,
+    RateOfRightAscen: -8.011762293e-9,
+    SqrtA: 5153.713379,
+    RightAscenAtWeek: -1.329584964,
+    ArgumentOfPerigee: 2.680556151,
+    MeanAnomaly: 2.387489046,
+    Af0: -0.005731582642,
+    Af1: 3.637978807e-11,
+    week: 287
+  },
+  {
+    ID: 30,
+    Health: 0,
+    Eccentricity: 0.007171154022,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.935814567,
+    RateOfRightAscen: -8.057478483e-9,
+    SqrtA: 5153.509766,
+    RightAscenAtWeek: 2.782385735,
+    ArgumentOfPerigee: -2.449757207,
+    MeanAnomaly: -0.4569461369,
+    Af0: -0.003070831299,
+    Af1: 7.275957614e-11,
+    week: 287
+  },
+  {
+    ID: 31,
+    Health: 0,
+    Eccentricity: 0.01064968109,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.9546118238,
+    RateOfRightAscen: -7.817468486e-9,
+    SqrtA: 5153.522461,
+    RightAscenAtWeek: 2.805835868,
+    ArgumentOfPerigee: 0.74702842,
+    MeanAnomaly: -1.380629148,
+    Af0: -0.002241134644,
+    Af1: 0.0,
+    week: 287
+  },
+  {
+    ID: 32,
+    Health: 0,
+    Eccentricity: 0.007905006409,
+    TimeOfApplicability: 147456.0,
+    OrbitalInclination: 0.962563357,
+    RateOfRightAscen: -7.851755629e-9,
+    SqrtA: 5153.677734,
+    RightAscenAtWeek: 1.726180042,
+    ArgumentOfPerigee: -2.136102327,
+    MeanAnomaly: -3.099587196,
+    Af0: -0.005893707275,
+    Af1: 3.637978807e-11,
+    week: 287
   }
+]);
 
-  return satellites;
-}
+//--------------------------------------
+// Get User Position Component
+//--------------------------------------
+let userPosition = { lat: 45.0, lon: -93.0, alt: 0.0 };
+export const setUserPosition = (lat, lon, alt) => {
+  userPosition = { lat, lon, alt };
+};
+export const getUserPosition = () => userPosition;
 
-// Function to simulate satellite movement
-function updateSatellitePositions(satellites) {
-  return satellites.map((sat) => {
-    // Simulate movement by adjusting ECEF positions slightly
-    const delta = 1000; // meters per update
-    const angle = deg2rad(sat.azimuth);
-    const elevationRad = deg2rad(sat.elevation);
 
-    // Simple circular movement in azimuth
-    const newAzimuth = (sat.azimuth + 5) % 360;
-
-    // Update positionECEF based on new azimuth and elevation
-    const r = Math.sqrt(
-      sat.positionECEF.x ** 2 +
-        sat.positionECEF.y ** 2 +
-        sat.positionECEF.z ** 2
-    );
-
-    const newElevation = sat.elevation; // Keep elevation constant for simplicity
-
-    // Convert spherical to Cartesian coordinates for new position
-    const newX =
-      r * Math.cos(deg2rad(newElevation)) * Math.sin(deg2rad(newAzimuth));
-    const newY =
-      r * Math.cos(deg2rad(newElevation)) * Math.cos(deg2rad(newAzimuth));
-    const newZ = r * Math.sin(deg2rad(newElevation));
-
-    // Calculate azimuth and elevation from new positions
-    const azEl = ECEFToAzEl(
-      { x: newX, y: newY, z: newZ },
-      observerECEF,
-      observerLatitude,
-      observerLongitude
-    );
-
-    // Update history
-    const newHistory = [...sat.history, { azimuth: azEl.azimuth, elevation: azEl.elevation }];
-    if (newHistory.length > 60) newHistory.shift(); // Keep last 60 points (1 minute at 1Hz)
-
-    return {
-      ...sat,
-      azimuth: azEl.azimuth,
-      elevation: azEl.elevation,
-      positionECEF: { x: newX, y: newY, z: newZ },
-      history: newHistory,
-    };
-  });
-}
 
 //--------------------------------------
 //  SV Data Table Component
 //--------------------------------------
-// Function to create GPS satellite data, mimicking GPS-153 receiver output
-function createSatelliteData(prn, azimuth, elevation, signalStrength, health, blockType) {
-  return { prn, azimuth, elevation, signalStrength, health, blockType };
-}
-
-// Mock dataset of satellites the receiver is currently seeing
-// Mock dataset of satellites the receiver is currently seeing (for the table)
-const initialTableSatellites = [
-  createSatelliteData(1, 45, 30, 48, 'Healthy', 'Block IIR-M'),
-  createSatelliteData(3, 120, 45, 40, 'Healthy', 'Block IIF'),
-  createSatelliteData(6, 90, 20, 35, 'Healthy', 'Block IIR-M'),
-  createSatelliteData(9, 180, 60, 50, 'Unhealthy', 'Block IIIA'),
-  createSatelliteData(12, 270, 15, 42, 'Healthy', 'Block IIF'),
-  createSatelliteData(17, 320, 70, 55, 'Healthy', 'Block IIR-M'),
-];
+const initialTableSatellites = [];
 
 function GPSSatelliteTable({ tableSatellites }) {
   return (
@@ -387,8 +571,8 @@ function SelectSVsOfInterest() {
   const [checked, setChecked] = React.useState({
     gps: true,
     ca: true,
-    py: true,
-    m: true,
+    p: true,
+    other: true,
     qzss: true,
     galileo: true,
     glonass: true,
@@ -401,8 +585,8 @@ function SelectSVsOfInterest() {
       ...checked,
       gps: event.target.checked,
       ca: event.target.checked,
-      py: event.target.checked,
-      m: event.target.checked,
+      p: event.target.checked,
+      other: event.target.checked,
     });
   };
 
@@ -439,7 +623,7 @@ function SelectSVsOfInterest() {
         }
       />
 
-      {/* Child Checkboxes (C/A, P/Y, M) */}
+      {/* Child Checkboxes (C/A, P, or Other) */}
       <Box sx={{ display: 'flex', flexDirection: 'column', ml: 3 }}>
         <FormControlLabel
           label="C/A"
@@ -453,23 +637,23 @@ function SelectSVsOfInterest() {
           }
         />
         <FormControlLabel
-          label="P/Y"
+          label="P"
           control={
             <Checkbox
               checked={checked.py}
               onChange={handleChangeCodeType}
-              name="py"
+              name="p"
               color="warning"
             />
           }
         />
         <FormControlLabel
-          label="M"
+          label="Other"
           control={
             <Checkbox
               checked={checked.m}
               onChange={handleChangeCodeType}
-              name="m"
+              name="other"
               color="success"
             />
           }
@@ -537,9 +721,6 @@ function App() {
   // State for table satellites
   const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
 
-  // State for sky plot satellites
-  const [skySatellites, setSkySatellites] = useState(generateInitialSatellites());
-
   // State to track the current theme mode
   const [darkMode, setDarkMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -560,19 +741,6 @@ function App() {
       mode: darkMode ? 'dark' : 'light',
     },
   });
-
-  // Effect to update satellite positions every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Update skySatellites
-      setSkySatellites((prevSatellites) => updateSatellitePositions(prevSatellites));
-
-      // Optionally, update tableSatellites if needed
-      // For now, we'll keep tableSatellites static
-    }, 1000); // Update every second
-
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -618,16 +786,6 @@ function App() {
             </Typography>
             <GPSSatelliteTable tableSatellites={tableSatellites} />
           </Grid>
-
-          {/* Sky Plot */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <SkyPlot
-              satellites={skySatellites}
-              observerPos={observerECEF}
-              observerLat={observerLatitude}
-              observerLon={observerLongitude}
-            />
-          </Box>
         </Grid>
 
         {/* Select SVs of Interest */}
