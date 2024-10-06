@@ -33,7 +33,7 @@ import FormGroup from '@mui/material/FormGroup';
 import { pink } from '@mui/material/colors';
 import './App.css';
 import logo from './logo_msgct.png';
-import * as d3 from 'd3';
+//import * as d3 from 'd3';
 import { Select, MenuItem, TextField } from '@mui/material';
 
 //set meta data
@@ -480,4 +480,5 @@ function SerialPortComponent() {
   );
 }
 
+export {App, GPSSatelliteTable, SelectSVsOfInterest, SerialPortComponent };
 export default App;
