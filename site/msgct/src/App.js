@@ -36,7 +36,7 @@ import logo from './logo_msgct.png';
 import * as d3 from 'd3';
 import { Select, MenuItem, TextField } from '@mui/material';
 import useEnhancedEffect from '@mui/material/utils/useEnhancedEffect';
-
+import { RadioGroup, Radio, FormControl, FormControlLabel, FormLabel } from '@mui/material';
 //set meta data
 const meta = {
   title: 'Multi-Source GNSS Constellation Tracker',
@@ -281,7 +281,7 @@ function GPSSatelliteTable({ tableSatellites }) {
 //--------------------------------------
 //  Updated Live Sky Plot to Update in Real Time
 //--------------------------------------
-function SkyPlot({ satellites }) {
+function SkyPlot({ satellites, satelliteHistories }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -353,23 +353,58 @@ function SkyPlot({ satellites }) {
           .text(`${az}°`);
       });
 
-      // Plot satellites
+      // Plot satellites and their tails
       satellites.forEach((sat) => {
         const { azimuth, elevation, ID } = sat;
 
-        // Convert azimuth and elevation to radians
+        // Convert azimuth and elevation to position
         const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
         const elevRad = elevationScale(elevation);
 
         const x = Math.cos(azRad) * elevRad;
         const y = Math.sin(azRad) * elevRad;
 
+        // Draw tail if history exists
+        const history = satelliteHistories[ID];
+        if (history && history.length > 1) {
+          const lineGenerator = d3.line()
+            .x(d => {
+              const az = (d.azimuth - 90) * (Math.PI / 180);
+              const r = elevationScale(d.elevation);
+              return Math.cos(az) * r;
+            })
+            .y(d => {
+              const az = (d.azimuth - 90) * (Math.PI / 180);
+              const r = elevationScale(d.elevation);
+              return Math.sin(az) * r;
+            })
+            .curve(d3.curveCatmullRom.alpha(0.5));
+        
+          // Create a group for the tail
+          const tailGroup = g.append('g');
+        
+          // For each segment between points, draw a line with decreasing opacity
+          for (let i = 1; i < history.length; i++) {
+            const segment = [history[i - 1], history[i]];
+            const age = i / history.length; // Older segments have smaller age values
+            const opacity = age; // Adjust this to control fading effect
+        
+            tailGroup.append('path')
+              .datum(segment)
+              .attr('d', lineGenerator)
+              .attr('fill', 'none')
+              .attr('stroke', 'blue')
+              .attr('stroke-width', 1)
+              .attr('stroke-opacity', opacity);
+          }
+        }
+
         // Draw satellite point
         g.append('circle')
           .attr('cx', x)
           .attr('cy', y)
           .attr('r', 5)
-          .attr('fill', 'blue');
+          .attr('fill', 'red');
 
         // Add label
         g.append('text')
@@ -384,14 +419,13 @@ function SkyPlot({ satellites }) {
     // Draw the sky plot initially
     drawSkyPlot(satellites);
 
-    // Update the sky plot whenever satellites data changes
-  }, [satellites]); // Redraw when satellites data changes
+    // Update the sky plot whenever satellites data or histories change
+  }, [satellites, satelliteHistories]); // Redraw when satellites or histories data changes
 
   return (
     <svg ref={svgRef}></svg>
   );
 }
-
 
 
 function SelectSVsOfInterest() {
@@ -847,8 +881,9 @@ function SerialPortComponent() {
 //  Main App Component
 //--------------------------------------
 function App() {
-  // State for table satellites
+  // State for table and live sky satellites
   const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
+  const [satelliteHistories, setSatelliteHistories] = useState({});
 
   // State to track the current theme mode
   const [darkMode, setDarkMode] = useState(false);
@@ -857,6 +892,59 @@ function App() {
   // Ref to store the interval ID
   const intervalRef = useRef(null);
 
+  const calculateHistories = () => {
+    if (gpsAlmanacDataGlobal && gpsAlmanacDataGlobal.length > 0) {
+      const timeWindow = 6 * 60 * 60; // 6 hours in seconds
+      const timeStep = 60; // Time step in seconds (e.g., every 60 seconds)
+      const numberOfSteps = Math.floor(timeWindow / timeStep);
+      const histories = {};
+
+      const currentTime = Date.now() / 1000; // Current time in seconds
+
+      // Loop over the time window
+      for (let i = numberOfSteps; i >= 0; i--) {
+        const t = currentTime - i * timeStep;
+
+        const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
+          const ecefPosition = calculateSatellitePosition(satellite, t);
+          const { elevation, azimuth } = calculateElevationAzimuth(
+            ecefPosition,
+            getUserPosition()
+          );
+          const ID = satellite.ID;
+          return {
+            ID,
+            elevation,
+            azimuth,
+            timestamp: t,
+          };
+        });
+
+        // Filter out satellites that are above the horizon (elevation > 0)
+        const visibleSatellites = computedSatellites.filter(
+          (sat) => sat.elevation > 0
+        );
+
+        visibleSatellites.forEach((sat) => {
+          if (!histories[sat.ID]) {
+            histories[sat.ID] = [];
+          }
+          histories[sat.ID].push({
+            elevation: sat.elevation,
+            azimuth: sat.azimuth,
+            timestamp: sat.timestamp,
+          });
+        });
+      }
+
+      setSatelliteHistories(histories);
+    }
+  };
+
+  useEffect(() => {
+    calculateHistories();
+  }, [gpsAlmanacDataGlobal]);
+  
   // Toggle between light and dark modes
   const handleThemeChange = () => {
     setDarkMode(!darkMode);
@@ -864,8 +952,9 @@ function App() {
 
   const updateSatellitePositions = () => {
     if (gpsAlmanacDataGlobal && gpsAlmanacDataGlobal.length > 0) {
+      const currentTime = Date.now() / 1000; // Current time in seconds
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-        const t = Date.now() / 1000; // Current time in seconds
+        const t = currentTime;
         const ecefPosition = calculateSatellitePosition(satellite, t);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(
           ecefPosition,
@@ -877,6 +966,7 @@ function App() {
           elevation,
           azimuth,
           snr,
+          timestamp: t, // Add timestamp
         };
       });
   
@@ -887,6 +977,7 @@ function App() {
   
       setComputedSatellitesGlobal(visibleSatellites);
       setTableSatellites(visibleSatellites);
+      calculateHistories();
     }
   };
   
@@ -982,7 +1073,7 @@ function App() {
             <Typography variant="h6" gutterBottom>
               Live Sky Plot
             </Typography>
-            <SkyPlot satellites={tableSatellites} />
+            <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} />
            </Grid>
         </Grid>
 
