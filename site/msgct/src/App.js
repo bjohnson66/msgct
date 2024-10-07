@@ -36,7 +36,8 @@ import logo from './logo_msgct.png';
 import * as d3 from 'd3';
 import { Select, MenuItem, TextField } from '@mui/material';
 import useEnhancedEffect from '@mui/material/utils/useEnhancedEffect';
-import { RadioGroup, Radio, FormControl, FormControlLabel, FormLabel } from '@mui/material';
+import { RadioGroup, Radio, FormControl, FormLabel } from '@mui/material';
+
 //set meta data
 const meta = {
   title: 'Multi-Source GNSS Constellation Tracker',
@@ -576,9 +577,55 @@ function SelectSVsOfInterest() {
 }
 
 //--------------------------------------
+//  PositionSourceSelector Component
+//--------------------------------------
+function PositionSourceSelector({ positionSource, onPositionSourceChange, manualPosition, setManualPosition }) {
+  const handleManualPositionChange = (field) => (event) => {
+    setManualPosition({ ...manualPosition, [field]: parseFloat(event.target.value) });
+  };
+
+  return (
+    <Box>
+      <FormControl component="fieldset">
+        <FormLabel component="legend">Select Position Source</FormLabel>
+        <RadioGroup value={positionSource} onChange={onPositionSourceChange}>
+          <FormControlLabel value="device" control={<Radio />} label="Use Device Position" />
+          <FormControlLabel value="receiver" control={<Radio />} label="Use Connected Receiver Position" />
+          <FormControlLabel value="manual" control={<Radio />} label="Manually Enter Position" />
+        </RadioGroup>
+      </FormControl>
+      {positionSource === 'manual' && (
+        <Box sx={{ mt: 2 }}>
+          <TextField
+            label="Latitude"
+            type="number"
+            value={manualPosition.lat}
+            onChange={handleManualPositionChange('lat')}
+            sx={{ mr: 2 }}
+          />
+          <TextField
+            label="Longitude"
+            type="number"
+            value={manualPosition.lon}
+            onChange={handleManualPositionChange('lon')}
+            sx={{ mr: 2 }}
+          />
+          <TextField
+            label="Altitude"
+            type="number"
+            value={manualPosition.alt}
+            onChange={handleManualPositionChange('alt')}
+          />
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+//--------------------------------------
 //  SerialPortComponent
 //--------------------------------------
-function SerialPortComponent() {
+function SerialPortComponent({ onPositionUpdate }) {
   const [ports, setPorts] = useState([]); // Available serial ports
   const [selectedPort, setSelectedPort] = useState(null); // Selected COM port
   const [serialData, setSerialData] = useState(''); // Raw serial data to display
@@ -763,6 +810,17 @@ function SerialPortComponent() {
             satellitesByPRN[satellite.prn] = satellite; // Overwrite if PRN already exists
           });
         }
+      } else if (
+        line.startsWith('$GPGGA') ||
+        line.startsWith('$GLGGA') ||
+        line.startsWith('$GAGGA') ||
+        line.startsWith('$BDGGA')
+      ) {
+        // Parse GGA sentences
+        const positionInfo = parseGGA(line);
+        if (positionInfo && onPositionUpdate) {
+          onPositionUpdate(positionInfo);
+        }
       }
     });
 
@@ -814,6 +872,48 @@ function SerialPortComponent() {
 
     return satellites;
   };
+
+  // Function to parse GGA sentences
+  const parseGGA = (sentence) => {
+    // GGA - Global Positioning System Fix Data
+    const fields = sentence.split(',');
+    if (fields.length < 15) {
+      console.error('Invalid GGA sentence:', sentence);
+      return null;
+    }
+    const latField = fields[2];
+    const latHemisphere = fields[3];
+    const lonField = fields[4];
+    const lonHemisphere = fields[5];
+    const altitude = parseFloat(fields[9]);
+
+    const lat = convertNMEACoordinateToDecimal(latField, latHemisphere);
+    const lon = convertNMEACoordinateToDecimal(lonField, lonHemisphere);
+
+    return {
+      lat,
+      lon,
+      alt: altitude,
+    };
+  };
+
+  // Helper function to convert NMEA coordinates to decimal degrees
+  const convertNMEACoordinateToDecimal = (coordinate, hemisphere) => {
+    if (!coordinate || coordinate.length < 3) {
+      return null;
+    }
+    const dotIndex = coordinate.indexOf('.');
+    const degreesLength = dotIndex > 2 ? dotIndex - 2 : 2;
+    const degrees = parseInt(coordinate.slice(0, degreesLength), 10);
+    const minutes = parseFloat(coordinate.slice(degreesLength));
+
+    let decimalDegrees = degrees + minutes / 60;
+    if (hemisphere === 'S' || hemisphere === 'W') {
+      decimalDegrees *= -1;
+    }
+    return decimalDegrees;
+  };
+
 
   return (
     <Container style={{ marginTop: '20px' }}>
@@ -891,6 +991,49 @@ function App() {
 
   // Ref to store the interval ID
   const intervalRef = useRef(null);
+
+  // State for position source and manual position
+  const [positionSource, setPositionSource] = useState('manual'); // 'device', 'receiver', or 'manual'
+  const [manualPosition, setManualPosition] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
+  const [userPositionState, setUserPositionState] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
+
+  const handlePositionSourceChange = (event) => {
+    const newPositionSource = event.target.value;
+    setPositionSource(newPositionSource);
+  };
+
+  const handlePositionUpdate = (position) => {
+    if (positionSource === 'receiver') {
+      setUserPositionState(position);
+    }
+  };
+
+  useEffect(() => {
+    if (positionSource === 'device') {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, altitude } = position.coords;
+            setUserPositionState({ lat: latitude, lon: longitude, alt: altitude || 0 });
+          },
+          (error) => {
+            console.error('Error getting device position:', error);
+          }
+        );
+      } else {
+        console.error('Geolocation is not supported by this browser.');
+      }
+    } else if (positionSource === 'receiver') {
+      // Do nothing; position will be updated via onPositionUpdate from SerialPortComponent
+    } else if (positionSource === 'manual') {
+      setUserPositionState(manualPosition);
+    }
+  }, [positionSource, manualPosition]);
+
+  // Update the global userPosition whenever userPositionState changes
+  useEffect(() => {
+    setUserPosition(userPositionState.lat, userPositionState.lon, userPositionState.alt);
+  }, [userPositionState]);
 
   const calculateHistories = () => {
     if (gpsAlmanacDataGlobal && gpsAlmanacDataGlobal.length > 0) {
@@ -1077,6 +1220,19 @@ function App() {
            </Grid>
         </Grid>
 
+        {/* Position Source Selector */}
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom>
+            User Position Source
+          </Typography>
+          <PositionSourceSelector
+            positionSource={positionSource}
+            onPositionSourceChange={handlePositionSourceChange}
+            manualPosition={manualPosition}
+            setManualPosition={setManualPosition}
+          />
+        </Grid>
+
         {/* Select SVs of Interest */}
         <Grid item="true" xs={12} md={6}>
           <Typography variant="h6" gutterBottom>
@@ -1087,7 +1243,7 @@ function App() {
 
         {/* Add the SerialPortComponent here */}
         <Grid item="true" xs={12} md={12}>
-          <SerialPortComponent />
+          <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
         </Grid>
 
       </Stack>
