@@ -49,10 +49,32 @@ const meta = {
 };
 
 //-------------------------------------
+// Globals
+//-------------------------------------
+/*
+* gpsAlmanacDataGlobal
+* global variable to store GPS almanac data
+*/
+export let gpsAlmanacDataGlobal = [];
+export const setGpsAlmanacDataGlobal = (data) => {
+  gpsAlmanacDataGlobal = data;
+};
+export const getGpsAlmanacDataGlobal = () => gpsAlmanacDataGlobal;
+/*
+* userPosition
+* global variable to store userPosition
+*/
+let userPosition = { lat: 45.0, lon: -93.0, alt: 0.0 };
+export const setUserPosition = (lat, lon, alt) => {
+  userPosition = { lat, lon, alt };
+};
+export const getUserPosition = () => userPosition;
+
+
+//-------------------------------------
 // Retreiving Almanac Data from Server
 //-------------------------------------
-//Stub
-const setAlmanacData = async () => {
+const fetchAlmanacData = async () => {
   try {
     const response = await fetch('/sv_data/gps_data/gps_20241006_112138.json');
     if (!response.ok) {
@@ -66,15 +88,6 @@ const setAlmanacData = async () => {
   }
 };
 
-//--------------------------------------
-// Get User Position Component
-//--------------------------------------
-let userPosition = { lat: 45.0, lon: -93.0, alt: 0.0 };
-export const setUserPosition = (lat, lon, alt) => {
-  userPosition = { lat, lon, alt };
-};
-export const getUserPosition = () => userPosition;
-
 
 
 //--------------------------------------
@@ -85,26 +98,36 @@ const initialTableSatellites = [];
 function GPSSatelliteTable({ tableSatellites }) {
   return (
     <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 700 }} size="small" aria-label="GPS Satellite table">
+      <Table
+        sx={{ minWidth: 700 }}
+        size="small"
+        aria-label="GPS Satellite table"
+      >
         <TableHead>
           <TableRow>
             <TableCell>PRN</TableCell>
-            <TableCell align="right">Azimuth (°)</TableCell>
-            <TableCell align="right">Elevation (°)</TableCell>
-            <TableCell align="right">Signal Strength (C/N0) dB-Hz</TableCell>
             <TableCell align="right">Health</TableCell>
-            <TableCell align="right">Block Type</TableCell>
+            <TableCell align="right">Eccentricity</TableCell>
+            <TableCell align="right">Orbital Inclination (rad)</TableCell>
+            <TableCell align="right">Mean Anomaly (rad)</TableCell>
+            {/* Add other columns as needed */}
           </TableRow>
         </TableHead>
         <TableBody>
           {tableSatellites.map((satellite) => (
-            <TableRow key={satellite.prn}>
-              <TableCell component="th" scope="row">{satellite.prn}</TableCell>
-              <TableCell align="right">{satellite.azimuth}</TableCell>
-              <TableCell align="right">{satellite.elevation}</TableCell>
-              <TableCell align="right">{satellite.signalStrength}</TableCell>
-              <TableCell align="right">{satellite.health}</TableCell>
-              <TableCell align="right">{satellite.blockType}</TableCell>
+            <TableRow key={satellite.ID}>
+              <TableCell component="th" scope="row">
+                {satellite.ID}
+              </TableCell>
+              <TableCell align="right">{satellite.Health}</TableCell>
+              <TableCell align="right">
+                {satellite.Eccentricity}
+              </TableCell>
+              <TableCell align="right">
+                {satellite.OrbitalInclination}
+              </TableCell>
+              <TableCell align="right">{satellite.MeanAnom}</TableCell>
+              {/* Add other cells as needed */}
             </TableRow>
           ))}
         </TableBody>
@@ -112,6 +135,7 @@ function GPSSatelliteTable({ tableSatellites }) {
     </TableContainer>
   );
 }
+
 
 function SelectSVsOfInterest() {
   const [checked, setChecked] = React.useState({
@@ -271,18 +295,18 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const [gpsAlmanacData, setAlmanacData] = useState([]);
-
   // Toggle between light and dark modes
   const handleThemeChange = () => {
     setDarkMode(!darkMode);
   };
 
-  const handleButtonClick = () => {
-    setAlmanacData();
-
+  const handleButtonClick = async() => {
     setShowConfetti(true);
     setTimeout(() => setShowConfetti(false), 6000); // Confetti disappears after 6 seconds
+
+    const data = await fetchAlmanacData();
+    setGpsAlmanacDataGlobal(data); // Update local state
+    setTableSatellites(data.satellites); // Update global variable
   };
 
   // Define the light and dark themes
@@ -310,11 +334,14 @@ function App() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Logo Image */}
             <img src={logo} className='Logo' alt='MSGCT Logo' />
-            <Typography variant="h4" sx={{ ml: 2 }}>
+            <Typography variant="h4">
               Multi-Source GNSS Constellation Tracker
             </Typography>
           </Box>
-          <Switch checked={darkMode} onChange={handleThemeChange} /> {/* Dark mode toggle */}
+          <Typography>
+                Dark Mode:
+          </Typography>
+          <Switch checked={darkMode} onChange={handleThemeChange} id="darkModeSwitch"/>
         </Box>
         <Button
           variant="contained"
@@ -322,7 +349,7 @@ function App() {
           onClick={handleButtonClick}
           sx={{ mt: 2 }}
         >
-          Push Me
+          Get Latest Almanac
         </Button>
       </Container>
 
