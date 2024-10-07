@@ -278,105 +278,113 @@ function GPSSatelliteTable({ tableSatellites }) {
   );
 }
 
-//----------------------------------
-// Live Sky Plot
-//----------------------------------
+//--------------------------------------
+//  Updated Live Sky Plot to Update in Real Time
+//--------------------------------------
 function SkyPlot({ satellites }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
-    // Dimensions
-    const width = 400;
-    const height = 400;
-    const margin = 40;
-    const radius = Math.min(width, height) / 2 - margin;
+    // Function to draw the sky plot with updated satellite data
+    const drawSkyPlot = (satellites) => {
+      // Dimensions
+      const width = 400;
+      const height = 400;
+      const margin = 40;
+      const radius = Math.min(width, height) / 2 - margin;
 
-    // Remove existing SVG if any
-    d3.select(svgRef.current).selectAll('*').remove();
+      // Remove existing SVG if any
+      d3.select(svgRef.current).selectAll('*').remove();
 
-    // Create SVG
-    const svg = d3
-      .select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height);
+      // Create SVG
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', width)
+        .attr('height', height);
 
-    // Create a group and move it to the center
-    const g = svg
-      .append('g')
-      .attr('transform', `translate(${width / 2}, ${height / 2})`);
+      // Create a group and move it to the center
+      const g = svg
+        .append('g')
+        .attr('transform', `translate(${width / 2}, ${height / 2})`);
 
-    // Draw concentric circles for elevation lines
-    const elevations = [0, 30, 60, 90]; // Elevation angles
-    const elevationScale = d3
-      .scaleLinear()
-      .domain([0, 90]) // Elevation from 0° (horizon) to 90° (zenith)
-      .range([radius, 0]); // Map to radial distance
+      // Draw concentric circles for elevation lines
+      const elevations = [0, 30, 60, 90]; // Elevation angles
+      const elevationScale = d3
+        .scaleLinear()
+        .domain([0, 90]) // Elevation from 0° (horizon) to 90° (zenith)
+        .range([radius, 0]); // Map to radial distance
 
-    elevations.forEach((elev) => {
-      g.append('circle')
-        .attr('r', elevationScale(elev))
-        .attr('fill', 'none')
-        .attr('stroke', '#ccc');
-      g.append('text')
-        .attr('x', 0)
-        .attr('y', -elevationScale(elev))
-        .attr('dy', '-0.35em')
-        .attr('text-anchor', 'middle')
-        .text(`${elev}°`);
-    });
+      elevations.forEach((elev) => {
+        g.append('circle')
+          .attr('r', elevationScale(elev))
+          .attr('fill', 'none')
+          .attr('stroke', '#ccc');
+        g.append('text')
+          .attr('x', 0)
+          .attr('y', -elevationScale(elev))
+          .attr('dy', '-0.35em')
+          .attr('text-anchor', 'middle')
+          .text(`${elev}°`);
+      });
 
-    // Draw azimuth lines and labels
-    const azimuths = d3.range(0, 360, 30); // Every 30°
-    azimuths.forEach((az) => {
-      const angle = (az - 90) * (Math.PI / 180); // Offset by -90° to align north at top
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius;
+      // Draw azimuth lines and labels
+      const azimuths = d3.range(0, 360, 30); // Every 30°
+      azimuths.forEach((az) => {
+        const angle = (az - 90) * (Math.PI / 180); // Offset by -90° to align north at top
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
 
-      // Draw line
-      g.append('line')
-        .attr('x1', 0)
-        .attr('y1', 0)
-        .attr('x2', x)
-        .attr('y2', y)
-        .attr('stroke', '#ccc');
+        // Draw line
+        g.append('line')
+          .attr('x1', 0)
+          .attr('y1', 0)
+          .attr('x2', x)
+          .attr('y2', y)
+          .attr('stroke', '#ccc');
 
-      // Add label
-      const labelX = Math.cos(angle) * (radius + 15);
-      const labelY = Math.sin(angle) * (radius + 15);
-      g.append('text')
-        .attr('x', labelX)
-        .attr('y', labelY)
-        .attr('text-anchor', 'middle')
-        .attr('alignment-baseline', 'middle')
-        .text(`${az}°`);
-    });
+        // Add label
+        const labelX = Math.cos(angle) * (radius + 15);
+        const labelY = Math.sin(angle) * (radius + 15);
+        g.append('text')
+          .attr('x', labelX)
+          .attr('y', labelY)
+          .attr('text-anchor', 'middle')
+          .attr('alignment-baseline', 'middle')
+          .text(`${az}°`);
+      });
 
-    // Plot satellites
-    satellites.forEach((sat) => {
-      const { azimuth, elevation, ID } = sat;
+      // Plot satellites
+      satellites.forEach((sat) => {
+        const { azimuth, elevation, ID } = sat;
 
-      // Convert azimuth and elevation to radians
-      const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
-      const elevRad = elevationScale(elevation);
+        // Convert azimuth and elevation to radians
+        const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
+        const elevRad = elevationScale(elevation);
 
-      const x = Math.cos(azRad) * elevRad;
-      const y = Math.sin(azRad) * elevRad;
+        const x = Math.cos(azRad) * elevRad;
+        const y = Math.sin(azRad) * elevRad;
 
-      // Draw satellite point
-      g.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 5)
-        .attr('fill', 'blue');
+        // Draw satellite point
+        g.append('circle')
+          .attr('cx', x)
+          .attr('cy', y)
+          .attr('r', 5)
+          .attr('fill', 'blue');
 
-      // Add label
-      g.append('text')
-        .attr('x', x)
-        .attr('y', y - 10)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'black')
-        .text(ID);
-    });
+        // Add label
+        g.append('text')
+          .attr('x', x)
+          .attr('y', y - 10)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'black')
+          .text(ID);
+      });
+    };
+
+    // Draw the sky plot initially
+    drawSkyPlot(satellites);
+
+    // Update the sky plot whenever satellites data changes
   }, [satellites]); // Redraw when satellites data changes
 
   return (
