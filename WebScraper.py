@@ -156,7 +156,7 @@ def fetch_and_save(name, url, save_directory):
         # Parse the content into JSON-like structure based on data source
         if name in [ "galileo", "glonass"]:
             parsed_data = parse_tle(content)
-        elif name in ["GPS", "qzss_almanac"]:
+        elif name in ["gps", "qzss_almanac"]:
             parsed_data = parse_almanac(content)
         else:
             parsed_data = {
