@@ -879,10 +879,17 @@ function App() {
           snr,
         };
       });
-      setComputedSatellitesGlobal(computedSatellites);
-      setTableSatellites(computedSatellites);
+  
+      // Filter out satellites that are below the horizon (elevation <= 0)
+      const visibleSatellites = computedSatellites.filter(
+        (sat) => sat.elevation > 0
+      );
+  
+      setComputedSatellitesGlobal(visibleSatellites);
+      setTableSatellites(visibleSatellites);
     }
   };
+  
 
   const handleButtonClick = async () => {
     try {
