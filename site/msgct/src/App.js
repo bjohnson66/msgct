@@ -280,12 +280,19 @@ function GPSSatelliteTable({ tableSatellites }) {
 }
 
 //--------------------------------------
-//  Updated Live Sky Plot to Update in Real Time
+// Live Sky Plot Component
 //--------------------------------------
-function SkyPlot({ satellites, satelliteHistories }) {
+function SkyPlot({ satellites, satelliteHistories, darkMode }) {
   const svgRef = useRef(null);
 
   useEffect(() => {
+    // Define colors based on darkMode
+    const circleColor = darkMode ? '#ffffff' : '#000000'; // White in dark mode, black in light mode
+    const lineColor = darkMode ? '#aaaaaa' : '#666666';   // Light gray in dark mode, darker in light mode
+    const textColor = darkMode ? '#ffffff' : '#000000';   // White in dark mode, black in light mode
+    const satelliteColor = darkMode ? 'yellow' : 'red';   // Yellow in dark mode, red in light mode
+    const tailColor = darkMode ? 'lightblue' : 'blue';    // Light blue in dark mode, blue in light mode
+
     // Function to draw the sky plot with updated satellite data
     const drawSkyPlot = (satellites) => {
       // Dimensions
@@ -319,12 +326,13 @@ function SkyPlot({ satellites, satelliteHistories }) {
         g.append('circle')
           .attr('r', elevationScale(elev))
           .attr('fill', 'none')
-          .attr('stroke', '#ccc');
+          .attr('stroke', circleColor);
         g.append('text')
           .attr('x', 0)
           .attr('y', -elevationScale(elev))
           .attr('dy', '-0.35em')
           .attr('text-anchor', 'middle')
+          .attr('fill', textColor)
           .text(`${elev}°`);
       });
 
@@ -341,7 +349,7 @@ function SkyPlot({ satellites, satelliteHistories }) {
           .attr('y1', 0)
           .attr('x2', x)
           .attr('y2', y)
-          .attr('stroke', '#ccc');
+          .attr('stroke', lineColor);
 
         // Add label
         const labelX = Math.cos(angle) * (radius + 15);
@@ -351,6 +359,7 @@ function SkyPlot({ satellites, satelliteHistories }) {
           .attr('y', labelY)
           .attr('text-anchor', 'middle')
           .attr('alignment-baseline', 'middle')
+          .attr('fill', textColor)
           .text(`${az}°`);
       });
 
@@ -380,21 +389,21 @@ function SkyPlot({ satellites, satelliteHistories }) {
               return Math.sin(az) * r;
             })
             .curve(d3.curveCatmullRom.alpha(0.5));
-        
+
           // Create a group for the tail
           const tailGroup = g.append('g');
-        
+
           // For each segment between points, draw a line with decreasing opacity
           for (let i = 1; i < history.length; i++) {
             const segment = [history[i - 1], history[i]];
             const age = i / history.length; // Older segments have smaller age values
             const opacity = age; // Adjust this to control fading effect
-        
+
             tailGroup.append('path')
               .datum(segment)
               .attr('d', lineGenerator)
               .attr('fill', 'none')
-              .attr('stroke', 'blue')
+              .attr('stroke', tailColor)
               .attr('stroke-width', 1)
               .attr('stroke-opacity', opacity);
           }
@@ -405,14 +414,14 @@ function SkyPlot({ satellites, satelliteHistories }) {
           .attr('cx', x)
           .attr('cy', y)
           .attr('r', 5)
-          .attr('fill', 'red');
+          .attr('fill', satelliteColor);
 
         // Add label
         g.append('text')
           .attr('x', x)
           .attr('y', y - 10)
           .attr('text-anchor', 'middle')
-          .attr('fill', 'black')
+          .attr('fill', textColor)
           .text(ID);
       });
     };
@@ -420,8 +429,8 @@ function SkyPlot({ satellites, satelliteHistories }) {
     // Draw the sky plot initially
     drawSkyPlot(satellites);
 
-    // Update the sky plot whenever satellites data or histories change
-  }, [satellites, satelliteHistories]); // Redraw when satellites or histories data changes
+    // Update the sky plot whenever satellites data, histories, or darkMode change
+  }, [satellites, satelliteHistories, darkMode]); // Redraw when satellites, histories, or darkMode data changes
 
   return (
     <svg ref={svgRef}></svg>
@@ -1216,7 +1225,7 @@ function App() {
             <Typography variant="h6" gutterBottom>
               Live Sky Plot
             </Typography>
-            <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} />
+            <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} darkMode={darkMode} />
            </Grid>
         </Grid>
 
