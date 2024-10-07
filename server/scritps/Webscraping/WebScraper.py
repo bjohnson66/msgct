@@ -5,32 +5,33 @@ import time
 import os
 import json
 from datetime import datetime
+from pathlib import Path
 
 urls = {
     "galileo": {
         "url": "https://celestrak.com/NORAD/elements/galileo.txt",
         "interval_hours": 1,
-        "save_directory": "Github\msgct\server\Galilio_Data"
+        "save_directory": Path("Github") / "msgct" / "site" / "public" / "sv_data" / "galilio_data"
     },
-    "GPS": {
+    "gps": {
         "url": "https://navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm",
         "interval_hours": 1,
-        "save_directory": "Github\msgct\server\GPS_Data"
+        "save_directory": Path("Github") / "msgct" / "site" / "public" / "sv_data" / "gps_data"
     },
     "glonass": {
         "url": "https://celestrak.org/NORAD/elements/glo-ops.txt",
         "interval_hours": 1,
-        "save_directory": "Github\msgct\server\GLONASS_Data"
+        "save_directory": Path("Github") / "msgct" / "site" / "public" / "sv_data" / "glonass_data"
     },
     "qzss_almanac": {
         "url": "https://sys.qzss.go.jp/dod/api/get/almanac",
         "interval_hours": 1,
-        "save_directory": "Github\msgct\server\QZSS_Almanac_Data"
+        "save_directory": Path("Github") / "msgct" / "site" / "public" / "sv_data" / "qzss_almanac_data"
     },
     "qzss_ephemeris": {
         "url": "https://sys.qzss.go.jp/dod/api/get/ephemeris",
         "interval_hours": 1,
-        "save_directory": "Github\msgct\server\QZSS_Ephemeris_Data"
+        "save_directory": Path("Github") / "msgct" / "site" / "public" / "sv_data" / "qzss_ephemeris_data"
     }
 }
 
