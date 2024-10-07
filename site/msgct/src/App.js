@@ -111,39 +111,42 @@ const fetchAlmanacData = async () => {
 const GM = 3.986005e14; // Gravitational constant for Earth (m^3/s^2)
 const OMEGA_DOT_E = 7.2921151467e-5; // Earth's rotation rate (rad/s)
 
-// Function to calculate the satellite's position at a given time
-// satelliteData: object containing the satellite's ephemeris data
-// t: current time in seconds (e.g., GPS time in seconds)
 function calculateSatellitePosition(satelliteData, t) {
   const {
     SQRT_A,               // Square root of the semi-major axis (meters^1/2)
     Eccentricity,         // Eccentricity
     OrbitalInclination,   // Orbital inclination (radians)
-    RightAscenAtWeek,     // Right ascension of ascending node (radians)
+    RightAscenAtWeek,     // Right ascension of ascending node at reference time (radians)
     ArgumentOfPerigee,    // Argument of perigee (radians)
     MeanAnom,             // Mean anomaly at reference time (radians)
-    TimeOfApplicability,  // Reference time (e.g., time of ephemeris, seconds)
-    RateOfRightAscen      // Mean motion or rate of right ascension (rad/s) - assuming this value is the equivalent
+    TimeOfApplicability,  // Reference time (seconds)
+    RateOfRightAscen      // Rate of right ascension (OMEGA_DOT) (rad/s)
   } = satelliteData;
 
   // Convert SQRT_A to semi-major axis
   const semiMajorAxis = Math.pow(SQRT_A, 2);
 
+  // Compute mean motion (n)
+  const meanMotion = Math.sqrt(GM / Math.pow(semiMajorAxis, 3));
+
   // Time since epoch (seconds)
   const deltaT = t - TimeOfApplicability;
 
   // Calculate the mean anomaly at time t
-  const meanAnomaly = MeanAnom + RateOfRightAscen * deltaT;
+  const meanAnomaly = MeanAnom + meanMotion * deltaT;
+
+  // Normalize mean anomaly to between 0 and 2π
+  const normalizedMeanAnomaly = meanAnomaly % (2 * Math.PI);
 
   // Solve Kepler's equation for eccentric anomaly (iterative method)
-  let eccentricAnomaly = meanAnomaly;
+  let eccentricAnomaly = normalizedMeanAnomaly;
   let previousEccentricAnomaly = 0;
   const tolerance = 1e-12;
 
   while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance) {
     previousEccentricAnomaly = eccentricAnomaly;
     eccentricAnomaly =
-      meanAnomaly + Eccentricity * Math.sin(eccentricAnomaly);
+      normalizedMeanAnomaly + Eccentricity * Math.sin(eccentricAnomaly);
   }
 
   // Calculate the true anomaly
@@ -155,28 +158,27 @@ function calculateSatellitePosition(satelliteData, t) {
   // Calculate the distance to the satellite
   const distance = semiMajorAxis * (1 - Eccentricity * Math.cos(eccentricAnomaly));
 
-  // Position in the orbital plane (x', y')
-  const xPrime = distance * Math.cos(trueAnomaly);
-  const yPrime = distance * Math.sin(trueAnomaly);
+  // Compute the argument of latitude
+  const argumentOfLatitude = ArgumentOfPerigee + trueAnomaly;
 
-  // Correct for orbital inclination and orientation
-  const cosInclination = Math.cos(OrbitalInclination);
-  const sinInclination = Math.sin(OrbitalInclination);
-  const cosRightAscension = Math.cos(RightAscenAtWeek);
-  const sinRightAscension = Math.sin(RightAscenAtWeek);
-  const cosArgumentOfPerigee = Math.cos(ArgumentOfPerigee);
-  const sinArgumentOfPerigee = Math.sin(ArgumentOfPerigee);
+  // Correct the right ascension of ascending node
+  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * deltaT - OMEGA_DOT_E * TimeOfApplicability;
 
-  const xOrbital = xPrime * cosArgumentOfPerigee - yPrime * sinArgumentOfPerigee;
-  const yOrbital = xPrime * sinArgumentOfPerigee + yPrime * cosArgumentOfPerigee;
+  // Position in orbital plane
+  const xOrbital = distance * Math.cos(argumentOfLatitude);
+  const yOrbital = distance * Math.sin(argumentOfLatitude);
 
   // Calculate ECEF coordinates (x, y, z)
-  const x = xOrbital * cosRightAscension - yOrbital * sinRightAscension * cosInclination;
-  const y = xOrbital * sinRightAscension + yOrbital * cosRightAscension * cosInclination;
+  const cosInclination = Math.cos(OrbitalInclination);
+  const sinInclination = Math.sin(OrbitalInclination);
+
+  const x = xOrbital * Math.cos(correctedRightAscension) - yOrbital * Math.sin(correctedRightAscension) * cosInclination;
+  const y = xOrbital * Math.sin(correctedRightAscension) + yOrbital * Math.cos(correctedRightAscension) * cosInclination;
   const z = yOrbital * sinInclination;
 
   return { x, y, z };
 }
+
 
 
 //--------------------------------------
@@ -738,52 +740,68 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Ref to store the interval ID
+  const intervalRef = useRef(null);
+
   // Toggle between light and dark modes
   const handleThemeChange = () => {
     setDarkMode(!darkMode);
+  };
+
+  const updateSatellitePositions = () => {
+    if (gpsAlmanacDataGlobal && gpsAlmanacDataGlobal.length > 0) {
+      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
+        const t = Date.now() / 1000; // Current time in seconds
+        const ecefPosition = calculateSatellitePosition(satellite, t);
+        const { elevation, azimuth, snr } = calculateElevationAzimuth(
+          ecefPosition,
+          getUserPosition()
+        );
+        const ID = satellite.ID;
+        return {
+          ID,
+          elevation,
+          azimuth,
+          snr,
+        };
+      });
+      setComputedSatellitesGlobal(computedSatellites);
+      setTableSatellites(computedSatellites);
+    }
   };
 
   const handleButtonClick = async () => {
     try {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3500); // Confetti disappears after 3.5 seconds
-  
+
       // Fetch almanac data from the server
       const data = await fetchAlmanacData();
       setGpsAlmanacDataGlobal(data.satellites); // Update global variable with fetched data
-  
-      // Compute ECEF and elevation/azimuth for each satellite
-      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-        const t = Date.now() / 1000; // Assuming current GPS time in seconds (you might want to adjust this)
-  
-        // Calculate ECEF coordinates using satellite data
-        const ecefPosition = calculateSatellitePosition(satellite, t);
-  
-        // Calculate elevation, azimuth, and SNR using user's position and satellite's ECEF coordinates
-        const { elevation, azimuth, snr } = calculateElevationAzimuth(
-          ecefPosition,
-          getUserPosition()
-        );
-        const ID  = satellite.ID;
-  
-        // Return an object containing satellite ID and computed values
-        return {
-          ID, // Assuming PRN as satellite identifier
-          elevation,
-          azimuth,
-          snr,
-        };
-      });
-  
-      // Store computed satellites in a global variable
-      setComputedSatellitesGlobal(computedSatellites);
-  
-      // Update state to display computed satellite data in the table
-      setTableSatellites(computedSatellites);
+
+      // Update satellite positions immediately
+      updateSatellitePositions();
+
+      // Start the interval to update satellite positions every second
+      if (intervalRef.current === null) {
+        intervalRef.current = setInterval(() => {
+          updateSatellitePositions();
+        }, 1000);
+      }
+
     } catch (error) {
       console.error('Failed to update satellite data:', error);
     }
   };
+
+  // Cleanup interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
   
 
   // Define the light and dark themes
