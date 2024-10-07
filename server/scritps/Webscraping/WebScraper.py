@@ -116,7 +116,7 @@ def parse_almanac(content):
             current_satellite["OrbitalInclination"] = float(line.split(":")[1].strip())
         elif "Rate of Right Ascen(r/s)" in line:
             current_satellite["RateOfRightAscen"] = float(line.split(":")[1].strip())
-        elif "SQRT A  (m 1/2)" in line:
+        elif "SQRT(A)" in line:
             current_satellite["SQRT_A"] = float(line.split(":")[1].strip())
         elif "Right Ascen at Week(rad)" in line:
             current_satellite["RightAscenAtWeek"] = float(line.split(":")[1].strip())
