@@ -35,6 +35,7 @@ import './App.css';
 import logo from './logo_msgct.png';
 //import * as d3 from 'd3';
 import { Select, MenuItem, TextField } from '@mui/material';
+import useEnhancedEffect from '@mui/material/utils/useEnhancedEffect';
 
 //set meta data
 const meta = {
@@ -69,6 +70,20 @@ export const setUserPosition = (lat, lon, alt) => {
   userPosition = { lat, lon, alt };
 };
 export const getUserPosition = () => userPosition;
+/*
+* prn, asmith, elevation, SNR for GPS
+*/
+export let computedSatellitesGlobal = [];
+export const setComputedSatellitesGlobal = (data) => {
+  computedSatellitesGlobal = data;
+};
+export const getComputedSatellitesGlobal = () => computedSatellitesGlobal;
+
+
+/*
+* Intitial state of SV table
+*/
+const initialTableSatellites = [];
 
 
 //-------------------------------------
@@ -76,7 +91,7 @@ export const getUserPosition = () => userPosition;
 //-------------------------------------
 const fetchAlmanacData = async () => {
   try {
-    const response = await fetch('/sv_data/gps_data/gps_20241006_112138.json');
+    const response = await fetch('/sv_data/gps_data/gps_20241006_204720.json');
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
@@ -88,29 +103,160 @@ const fetchAlmanacData = async () => {
   }
 };
 
+//-------------------------------------
+// GPS Satellite Calculaitons - ECEF
+//--------------------------------------
+//See: https://gssc.esa.int/navipedia/index.php?title=GPS_and_Galileo_Satellite_Coordinates_Computation
+// Constants
+const GM = 3.986005e14; // Gravitational constant for Earth (m^3/s^2)
+const OMEGA_DOT_E = 7.2921151467e-5; // Earth's rotation rate (rad/s)
 
+// Function to calculate the satellite's position at a given time
+// satelliteData: object containing the satellite's ephemeris data
+// t: current time in seconds (e.g., GPS time in seconds)
+function calculateSatellitePosition(satelliteData, t) {
+  const {
+    SQRT_A,               // Square root of the semi-major axis (meters^1/2)
+    Eccentricity,         // Eccentricity
+    OrbitalInclination,   // Orbital inclination (radians)
+    RightAscenAtWeek,     // Right ascension of ascending node (radians)
+    ArgumentOfPerigee,    // Argument of perigee (radians)
+    MeanAnom,             // Mean anomaly at reference time (radians)
+    TimeOfApplicability,  // Reference time (e.g., time of ephemeris, seconds)
+    RateOfRightAscen      // Mean motion or rate of right ascension (rad/s) - assuming this value is the equivalent
+  } = satelliteData;
+
+  // Convert SQRT_A to semi-major axis
+  const semiMajorAxis = Math.pow(SQRT_A, 2);
+
+  // Time since epoch (seconds)
+  const deltaT = t - TimeOfApplicability;
+
+  // Calculate the mean anomaly at time t
+  const meanAnomaly = MeanAnom + RateOfRightAscen * deltaT;
+
+  // Solve Kepler's equation for eccentric anomaly (iterative method)
+  let eccentricAnomaly = meanAnomaly;
+  let previousEccentricAnomaly = 0;
+  const tolerance = 1e-12;
+
+  while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance) {
+    previousEccentricAnomaly = eccentricAnomaly;
+    eccentricAnomaly =
+      meanAnomaly + Eccentricity * Math.sin(eccentricAnomaly);
+  }
+
+  // Calculate the true anomaly
+  const trueAnomaly = 2 * Math.atan2(
+    Math.sqrt(1 + Eccentricity) * Math.sin(eccentricAnomaly / 2),
+    Math.sqrt(1 - Eccentricity) * Math.cos(eccentricAnomaly / 2)
+  );
+
+  // Calculate the distance to the satellite
+  const distance = semiMajorAxis * (1 - Eccentricity * Math.cos(eccentricAnomaly));
+
+  // Position in the orbital plane (x', y')
+  const xPrime = distance * Math.cos(trueAnomaly);
+  const yPrime = distance * Math.sin(trueAnomaly);
+
+  // Correct for orbital inclination and orientation
+  const cosInclination = Math.cos(OrbitalInclination);
+  const sinInclination = Math.sin(OrbitalInclination);
+  const cosRightAscension = Math.cos(RightAscenAtWeek);
+  const sinRightAscension = Math.sin(RightAscenAtWeek);
+  const cosArgumentOfPerigee = Math.cos(ArgumentOfPerigee);
+  const sinArgumentOfPerigee = Math.sin(ArgumentOfPerigee);
+
+  const xOrbital = xPrime * cosArgumentOfPerigee - yPrime * sinArgumentOfPerigee;
+  const yOrbital = xPrime * sinArgumentOfPerigee + yPrime * cosArgumentOfPerigee;
+
+  // Calculate ECEF coordinates (x, y, z)
+  const x = xOrbital * cosRightAscension - yOrbital * sinRightAscension * cosInclination;
+  const y = xOrbital * sinRightAscension + yOrbital * cosRightAscension * cosInclination;
+  const z = yOrbital * sinInclination;
+
+  return { x, y, z };
+}
+
+
+//--------------------------------------
+// GPS SV Calculaiton topocentric coordinates
+//--------------------------------------
+// Function to convert ECEF coordinates of a satellite to topocentric (ENU) coordinates
+// Takes in satellite position {x, y, z} and user position {lat, lon, alt} (latitude, longitude in radians)
+function calculateElevationAzimuth(satellitePosition, userPosition) {
+  const { lat, lon, alt } = userPosition; // User's geodetic position (latitude and longitude in radians)
+  const { x: xs, y: ys, z: zs } = satellitePosition; // Satellite's position in ECEF coordinates
+
+  // Convert user's geodetic position to ECEF coordinates
+  const a = 6378137; // WGS-84 Earth semi-major axis (meters)
+  const f = 1 / 298.257223563; // WGS-84 flattening factor
+  const e2 = f * (2 - f); // Square of Earth's eccentricity
+
+  const cosLat = Math.cos(lat);
+  const sinLat = Math.sin(lat);
+  const cosLon = Math.cos(lon);
+  const sinLon = Math.sin(lon);
+
+  // Calculate radius of curvature in the prime vertical
+  const N = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+
+  // User's ECEF coordinates
+  const xUser = (N + alt) * cosLat * cosLon;
+  const yUser = (N + alt) * cosLat * sinLon;
+  const zUser = (N * (1 - e2) + alt) * sinLat;
+
+  // Vector from user to satellite in ECEF
+  const dx = xs - xUser;
+  const dy = ys - yUser;
+  const dz = zs - zUser;
+
+  // Transform the vector to ENU (East-North-Up) coordinates
+  const east = -sinLon * dx + cosLon * dy;
+  const north = -sinLat * cosLon * dx - sinLat * sinLon * dy + cosLat * dz;
+  const up = cosLat * cosLon * dx + cosLat * sinLon * dy + sinLat * dz;
+
+  // Calculate the azimuth (radians)
+  const azimuth = Math.atan2(east, north);
+  const azimuthDegrees = (azimuth * 180) / Math.PI;
+  
+  // Calculate the elevation (radians)
+  const horizontalDistance = Math.sqrt(east * east + north * north);
+  const elevation = Math.atan2(up, horizontalDistance);
+  const elevationDegrees = (elevation * 180) / Math.PI;
+
+  return {
+    elevation: elevationDegrees, // Elevation in degrees
+    azimuth: (azimuthDegrees + 360) % 360, // Azimuth in degrees (normalized to 0-360 range)
+    snr: estimateSNR(elevationDegrees) // Call SNR estimation based on elevation
+  };
+}
+
+// Function to estimate SNR based on elevation angle (simple model)
+// Higher elevations generally result in better signal quality due to less atmospheric interference
+function estimateSNR(elevation) {
+  // SNR estimation can be complex, depending on atmospheric models, hardware, etc.
+  // Here's a simple model: the higher the elevation, the better the signal
+  if (elevation <= 0) return 0; // Below horizon, no signal
+
+  // Linearly estimate SNR, assuming 0 dB at 0° elevation and 50 dB at zenith (90°)
+  const snr = Math.min(50, Math.max(0, elevation * (50 / 90)));
+  return snr;
+}
 
 //--------------------------------------
 //  SV Data Table Component
 //--------------------------------------
-const initialTableSatellites = [];
-
 function GPSSatelliteTable({ tableSatellites }) {
   return (
     <TableContainer component={Paper}>
-      <Table
-        sx={{ minWidth: 700 }}
-        size="small"
-        aria-label="GPS Satellite table"
-      >
+      <Table sx={{ minWidth: 700 }} size="small" aria-label="GPS Satellite table">
         <TableHead>
           <TableRow>
             <TableCell>PRN</TableCell>
-            <TableCell align="right">Health</TableCell>
-            <TableCell align="right">Eccentricity</TableCell>
-            <TableCell align="right">Orbital Inclination (rad)</TableCell>
-            <TableCell align="right">Mean Anomaly (rad)</TableCell>
-            {/* Add other columns as needed */}
+            <TableCell align="right">Elevation (°)</TableCell>
+            <TableCell align="right">Azimuth (°)</TableCell>
+            <TableCell align="right">SNR (dB)</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -119,15 +265,9 @@ function GPSSatelliteTable({ tableSatellites }) {
               <TableCell component="th" scope="row">
                 {satellite.ID}
               </TableCell>
-              <TableCell align="right">{satellite.Health}</TableCell>
-              <TableCell align="right">
-                {satellite.Eccentricity}
-              </TableCell>
-              <TableCell align="right">
-                {satellite.OrbitalInclination}
-              </TableCell>
-              <TableCell align="right">{satellite.MeanAnom}</TableCell>
-              {/* Add other cells as needed */}
+              <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
+              <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
+              <TableCell align="right">{satellite.snr.toFixed(2)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -135,6 +275,7 @@ function GPSSatelliteTable({ tableSatellites }) {
     </TableContainer>
   );
 }
+
 
 
 function SelectSVsOfInterest() {
@@ -281,105 +422,6 @@ function SelectSVsOfInterest() {
         }
       />
     </FormGroup>
-  );
-}
-
-//--------------------------------------
-//  Main App Component
-//--------------------------------------
-function App() {
-  // State for table satellites
-  const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
-
-  // State to track the current theme mode
-  const [darkMode, setDarkMode] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-
-  // Toggle between light and dark modes
-  const handleThemeChange = () => {
-    setDarkMode(!darkMode);
-  };
-
-  const handleButtonClick = async() => {
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 6000); // Confetti disappears after 6 seconds
-
-    const data = await fetchAlmanacData();
-    setGpsAlmanacDataGlobal(data); // Update local state
-    setTableSatellites(data.satellites); // Update global variable
-  };
-
-  // Define the light and dark themes
-  const theme = createTheme({
-    palette: {
-      mode: darkMode ? 'dark' : 'light',
-    },
-  });
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* Ensures proper theme-based background */}
-      {showConfetti && <Confetti />}
-
-      {/* Use Helmet to add metadata to the head section */}
-      <Helmet>
-        <meta name="viewport" content="initial-scale=1, width=device-width" />
-        <title>Multi-Source GNSS Constellation Tracker</title>
-      </Helmet>
-
-      {/* Title Banner of Page */}
-      <Container style={{ marginTop: '50px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Logo and Title */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {/* Logo Image */}
-            <img src={logo} className='Logo' alt='MSGCT Logo' />
-            <Typography variant="h4">
-              Multi-Source GNSS Constellation Tracker
-            </Typography>
-          </Box>
-          <Typography>
-                Dark Mode:
-          </Typography>
-          <Switch checked={darkMode} onChange={handleThemeChange} id="darkModeSwitch"/>
-        </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleButtonClick}
-          sx={{ mt: 2 }}
-        >
-          Get Latest Almanac
-        </Button>
-      </Container>
-
-      {/* Body of Page */}
-      <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={4}>
-          {/* Satellite Table */}
-          <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>
-              GPS Satellite Data
-            </Typography>
-            <GPSSatelliteTable tableSatellites={tableSatellites} />
-          </Grid>
-        </Grid>
-
-        {/* Select SVs of Interest */}
-        <Grid item xs={12} md={6}>
-          <Typography variant="h6" gutterBottom>
-            Select SVs of Interest
-          </Typography>
-          <SelectSVsOfInterest />
-        </Grid>
-
-        {/* Add the SerialPortComponent here */}
-        <Grid item xs={12} md={12}>
-          <SerialPortComponent />
-        </Grid>
-
-      </Stack>
-    </ThemeProvider>
   );
 }
 
@@ -681,6 +723,140 @@ function SerialPortComponent() {
         </Box>
       </Box>
     </Container>
+  );
+}
+
+
+//--------------------------------------
+//  Main App Component
+//--------------------------------------
+function App() {
+  // State for table satellites
+  const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
+
+  // State to track the current theme mode
+  const [darkMode, setDarkMode] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // Toggle between light and dark modes
+  const handleThemeChange = () => {
+    setDarkMode(!darkMode);
+  };
+
+  const handleButtonClick = async () => {
+    try {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3500); // Confetti disappears after 3.5 seconds
+  
+      // Fetch almanac data from the server
+      const data = await fetchAlmanacData();
+      setGpsAlmanacDataGlobal(data.satellites); // Update global variable with fetched data
+  
+      // Compute ECEF and elevation/azimuth for each satellite
+      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
+        const t = Date.now() / 1000; // Assuming current GPS time in seconds (you might want to adjust this)
+  
+        // Calculate ECEF coordinates using satellite data
+        const ecefPosition = calculateSatellitePosition(satellite, t);
+  
+        // Calculate elevation, azimuth, and SNR using user's position and satellite's ECEF coordinates
+        const { elevation, azimuth, snr } = calculateElevationAzimuth(
+          ecefPosition,
+          getUserPosition()
+        );
+        const ID  = satellite.ID;
+  
+        // Return an object containing satellite ID and computed values
+        return {
+          ID, // Assuming PRN as satellite identifier
+          elevation,
+          azimuth,
+          snr,
+        };
+      });
+  
+      // Store computed satellites in a global variable
+      setComputedSatellitesGlobal(computedSatellites);
+  
+      // Update state to display computed satellite data in the table
+      setTableSatellites(computedSatellites);
+    } catch (error) {
+      console.error('Failed to update satellite data:', error);
+    }
+  };
+  
+
+  // Define the light and dark themes
+  const theme = createTheme({
+    palette: {
+      mode: darkMode ? 'dark' : 'light',
+    },
+  });
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline /> {/* Ensures proper theme-based background */}
+      {showConfetti && <Confetti />}
+
+      {/* Use Helmet to add metadata to the head section */}
+      <Helmet>
+        <meta name="viewport" content="initial-scale=1, width=device-width" />
+        <title>Multi-Source GNSS Constellation Tracker</title>
+      </Helmet>
+
+      {/* Title Banner of Page */}
+      <Container style={{ marginTop: '50px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Logo and Title */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* Logo Image */}
+            <img src={logo} className='Logo' alt='MSGCT Logo' />
+            <Typography variant="h4">
+              Multi-Source GNSS Constellation Tracker
+            </Typography>
+          </Box>
+          <Typography>
+                Dark Mode:
+          </Typography>
+          <Switch checked={darkMode} onChange={handleThemeChange} id="darkModeSwitch"/>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleButtonClick}
+          sx={{ mt: 2 }}
+        >
+          Get Latest Almanac
+        </Button>
+      </Container>
+
+      {/* Body of Page */}
+      <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
+        <Grid container spacing={4}>
+          {/* Satellite Table */}
+          <Grid item="true" xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>
+              GPS Satellite Data
+            </Typography>
+            <GPSSatelliteTable tableSatellites={tableSatellites} />
+          </Grid>
+        </Grid>
+
+        {/* Select SVs of Interest */}
+        <Grid item="true" xs={12} md={6}>
+          <Typography variant="h6" gutterBottom>
+            Select SVs of Interest
+          </Typography>
+          <SelectSVsOfInterest />
+        </Grid>
+
+        {/* Add the SerialPortComponent here */}
+        <Grid item="true" xs={12} md={12}>
+          <SerialPortComponent />
+        </Grid>
+
+      </Stack>
+    </ThemeProvider>
   );
 }
 
