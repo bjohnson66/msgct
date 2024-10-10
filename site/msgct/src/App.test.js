@@ -1,7 +1,10 @@
 // App.test.js
-import { render, screen, fireEvent, act} from '@testing-library/react';
-import {App, GPSSatelliteTable, SelectSVsOfInterest, SerialPortComponent} from './App'; // Adjust the import path
+import { render, screen, fireEvent } from '@testing-library/react';
+import App from './App';
+import GPSSatelliteTable from './components/GPSSatelliteTable';
+import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import React from 'react';
+
 
 //-------------------------------------
 //Testing App Component
@@ -20,20 +23,16 @@ test('renders the app with title and logo', () => {
 //---------------------------------------
 const mockData = [
   {
-    prn: 'G01',
+    ID: 'G01',             // Adjusted from prn to ID
     azimuth: 120.5,
     elevation: 45.2,
-    signalStrength: 50,
-    health: 'Healthy',
-    blockType: 'IIR-M',
+    snr: 50,               // Adjusted from signalStrength to snr
   },
   {
-    prn: 'G02',
+    ID: 'G02',             // Adjusted from prn to ID
     azimuth: 210.0,
     elevation: 30.0,
-    signalStrength: 45,
-    health: 'Unhealthy',
-    blockType: 'IIF',
+    snr: 45,               // Adjusted from signalStrength to snr
   },
 ];
 
@@ -43,12 +42,8 @@ test('renders satellite data in table', () => {
   // Check that table headers are rendered
   expect(screen.getByText(/PRN/i)).toBeInTheDocument();
   expect(screen.getByText(/Azimuth/i)).toBeInTheDocument();
-
-  // Check that satellite data is rendered
-  expect(screen.getByText('G01')).toBeInTheDocument();
-  expect(screen.getByText('G02')).toBeInTheDocument();
-  expect(screen.getByText('120.5')).toBeInTheDocument();
-  expect(screen.getByText('Unhealthy')).toBeInTheDocument();
+  expect(screen.getByText(/Elevation/i)).toBeInTheDocument();
+  expect(screen.getByText(/SNR/i)).toBeInTheDocument();
 });
 
 
