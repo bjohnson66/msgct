@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build_and_deploy:
+  run_tests:
     runs-on: ubuntu-latest
     steps:
       # Step 1: Checkout the repository
@@ -25,19 +25,30 @@ jobs:
         working-directory: ./site/msgct
         run: npm test -- --watchAll=false
 
-      # Step 4: Build the React project
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    needs: run_tests
+    steps:
+      # Step 1: Checkout the repository
+      - uses: actions/checkout@v4
+
+      # Step 2: Navigate to the React project and install dependencies
+      - name: Install dependencies
+        working-directory: ./site/msgct
+        run: npm ci
+
+      # Step 3: Build the React project
       - name: Build project
         working-directory: ./site/msgct
         run: npm run build
 
-      # Step 5: Copy the build output to the Firebase public directory while preserving sv_data
+      # Step 4: Copy the build output to the Firebase public directory while preserving sv_data
       - name: Copy build files to public directory
         run: |
-          find ./site/public -mindepth 1 ! -name 'sv_data' -exec rm -rf {} +
-          cp -R ./site/msgct/build/* ./site/public
+          rsync -av --delete --exclude 'sv_data' ./site/msgct/build/ ./site/public/
         working-directory: ./ # Run this from the root to ensure paths are correct
 
-      # Step 6: Deploy to Firebase Hosting
+      # Step 5: Deploy to Firebase Hosting
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
