@@ -42,17 +42,25 @@ jobs:
         working-directory: ./site/msgct
         run: npm run build
 
-      # Step 4: Copy the build output to the Firebase public directory while preserving sv_data
-      - name: Copy build files to public directory
+      # Step 4: Backup sv_data, clear public, copy build, restore sv_data
+      - name: Preserve sv_data and deploy build
         working-directory: ./site
         run: |
-          echo "Current contents of ./public before rsync:"
+          echo "Backing up sv_data..."
+          mv ./public/sv_data ./sv_data_backup
+          
+          echo "Clearing public directory..."
+          rm -rf ./public/*
+
+          echo "Copying build files..."
+          cp -R ./msgct/build/* ./public
+
+          echo "Restoring sv_data..."
+          mv ./sv_data_backup ./public/sv_data
+
+          echo "Contents of ./public after restoration:"
           ls -la ./public
-          echo "Running rsync to copy build files while preserving sv_data..."
-          rsync -av --delete --exclude 'sv_data/**' ./msgct/build/ ./public/
-          echo "Current contents of ./public after rsync:"
-          ls -la ./public
-          echo "Contents of sv_data after rsync (should be unchanged):"
+          echo "Contents of ./public/sv_data:"
           ls -la ./public/sv_data
 
       # Step 5: Deploy to Firebase Hosting
