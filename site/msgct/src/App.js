@@ -115,6 +115,25 @@ function App() {
     setUserPosition(userPositionState.lat, userPositionState.lon, userPositionState.alt);
   }, [userPositionState]);
 
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+  
+    updateSatellitePositions();
+  
+    if (useCurrentTime) {
+      intervalRef.current = setInterval(updateSatellitePositions, 250);
+    }
+  
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [manualTimeOffset, useCurrentTime]);
+  
+
   const updateSatellitePositions = () => {
     if (gpsAlmanacDataGlobal.length > 0) {
       const UTC_GPST_OFFSET = 18;
@@ -178,9 +197,6 @@ function App() {
       setGpsAlmanacDataGlobal(data.satellites);
       updateSatellitePositions();
 
-      if (!intervalRef.current) {
-        intervalRef.current = setInterval(updateSatellitePositions, 1000);
-      }
     } catch (error) {
       console.error('Failed to update satellite data:', error);
     }
