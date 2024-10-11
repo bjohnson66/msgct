@@ -11,7 +11,7 @@
 
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid, Checkbox, IconButton, TextField} from '@mui/material';
 import { Helmet } from 'react-helmet';
 import Confetti from 'react-confetti';
@@ -115,6 +115,61 @@ function App() {
     setUserPosition(userPositionState.lat, userPositionState.lon, userPositionState.alt);
   }, [userPositionState]);
 
+  const calculateHistories = useCallback(() => {
+    if (gpsAlmanacDataGlobal.length > 0) {
+      const timeWindow = 6 * 60 * 60; // 6 hours in seconds
+      const timeStep = 60; // Time step in seconds
+      const numberOfSteps = Math.floor(timeWindow / timeStep);
+      const histories = {};
+      let currentTime = Date.now() / 1000;
+  
+      if (!useCurrentTime) {
+        currentTime += manualTimeOffset;
+      }
+  
+      for (let i = numberOfSteps; i >= 0; i--) {
+        const t = currentTime - i * timeStep;
+  
+        const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
+          const ecefPosition = calculateSatellitePosition(satellite, t);
+          const { elevation, azimuth } = calculateElevationAzimuth(ecefPosition, getUserPosition());
+          return { ID: satellite.ID, elevation, azimuth, timestamp: t };
+        }).filter((sat) => sat.elevation > 0);
+  
+        computedSatellites.forEach((sat) => {
+          if (!histories[sat.ID]) {
+            histories[sat.ID] = [];
+          }
+          histories[sat.ID].push({ elevation: sat.elevation, azimuth: sat.azimuth, timestamp: sat.timestamp });
+        });
+      }
+  
+      setSatelliteHistories(histories);
+    }
+  }, [manualTimeOffset, useCurrentTime]);
+  
+  const updateSatellitePositions = useCallback(() => {
+    if (gpsAlmanacDataGlobal.length > 0) {
+      const UTC_GPST_OFFSET = 18;
+      let currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
+  
+      if (!useCurrentTime) {
+        currentTime += manualTimeOffset;
+      }
+  
+      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
+        const ecefPosition = calculateSatellitePosition(satellite, currentTime);
+        const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
+        return { ID: satellite.ID, elevation, azimuth, snr };
+      }).filter((sat) => sat.elevation > 0);
+  
+      setComputedSatellitesGlobal(computedSatellites);
+      setTableSatellites(computedSatellites);
+      calculateHistories();
+    }
+  }, [manualTimeOffset, useCurrentTime, calculateHistories]);
+  
+  
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -131,62 +186,7 @@ function App() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [manualTimeOffset, useCurrentTime]);
-  
-
-  const updateSatellitePositions = () => {
-    if (gpsAlmanacDataGlobal.length > 0) {
-      const UTC_GPST_OFFSET = 18;
-      let currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
-
-      if (!useCurrentTime) {
-        currentTime += manualTimeOffset;
-      }
-
-      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-        const ecefPosition = calculateSatellitePosition(satellite, currentTime);
-        const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
-        return { ID: satellite.ID, elevation, azimuth, snr };
-      }).filter((sat) => sat.elevation > 0);
-
-      setComputedSatellitesGlobal(computedSatellites);
-      setTableSatellites(computedSatellites);
-      calculateHistories();
-    }
-  };
-
-  const calculateHistories = () => {
-    if (gpsAlmanacDataGlobal.length > 0) {
-      const timeWindow = 6 * 60 * 60; // 6 hours in seconds
-      const timeStep = 60; // Time step in seconds
-      const numberOfSteps = Math.floor(timeWindow / timeStep);
-      const histories = {};
-      let currentTime = Date.now() / 1000;
-
-      if (!useCurrentTime) {
-        currentTime += manualTimeOffset;
-      }
-
-      for (let i = numberOfSteps; i >= 0; i--) {
-        const t = currentTime - i * timeStep;
-
-        const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-          const ecefPosition = calculateSatellitePosition(satellite, t);
-          const { elevation, azimuth } = calculateElevationAzimuth(ecefPosition, getUserPosition());
-          return { ID: satellite.ID, elevation, azimuth, timestamp: t };
-        }).filter((sat) => sat.elevation > 0);
-
-        computedSatellites.forEach((sat) => {
-          if (!histories[sat.ID]) {
-            histories[sat.ID] = [];
-          }
-          histories[sat.ID].push({ elevation: sat.elevation, azimuth: sat.azimuth, timestamp: sat.timestamp });
-        });
-      }
-
-      setSatelliteHistories(histories);
-    }
-  };
+  }, [updateSatellitePositions, useCurrentTime]);
 
   const handleButtonClick = async () => {
     try {
