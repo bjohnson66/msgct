@@ -114,7 +114,8 @@ function App() {
 
   const updateSatellitePositions = () => {
     if (gpsAlmanacDataGlobal.length > 0) {
-      const currentTime = Date.now() / 1000;
+      const UTC_GPST_OFFSET = 18;
+      const currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
         const ecefPosition = calculateSatellitePosition(satellite, currentTime);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());

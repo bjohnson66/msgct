@@ -31,18 +31,20 @@ export const calculateSatellitePosition = (satelliteData, t) => {
   const meanAnomaly = MeanAnom + meanMotion * deltaT;
 
   // Normalize mean anomaly to between 0 and 2π
-  const normalizedMeanAnomaly = meanAnomaly % (2 * Math.PI);
+  let normalizedMeanAnomaly = meanAnomaly % (2 * Math.PI);
+  if (normalizedMeanAnomaly < 0) normalizedMeanAnomaly += 2 * Math.PI;
 
-  // Solve Kepler's equation for eccentric anomaly (iterative method)
+  // Solve Kepler's equation for eccentric anomaly (using Newton-Raphson method)
   let eccentricAnomaly = normalizedMeanAnomaly;
-  let previousEccentricAnomaly = 0;
+  let previousEccentricAnomaly;
   const tolerance = 1e-12;
-
-  while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance) {
+  do {
     previousEccentricAnomaly = eccentricAnomaly;
     eccentricAnomaly =
-      normalizedMeanAnomaly + Eccentricity * Math.sin(eccentricAnomaly);
-  }
+      previousEccentricAnomaly - 
+      (previousEccentricAnomaly - Eccentricity * Math.sin(previousEccentricAnomaly) - normalizedMeanAnomaly) /
+      (1 - Eccentricity * Math.cos(previousEccentricAnomaly));
+  } while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance);
 
   // Calculate the true anomaly
   const trueAnomaly = 2 * Math.atan2(
@@ -57,7 +59,7 @@ export const calculateSatellitePosition = (satelliteData, t) => {
   const argumentOfLatitude = ArgumentOfPerigee + trueAnomaly;
 
   // Correct the right ascension of ascending node
-  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * deltaT - OMEGA_DOT_E * TimeOfApplicability;
+  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * deltaT;
 
   // Position in orbital plane
   const xOrbital = distance * Math.cos(argumentOfLatitude);
