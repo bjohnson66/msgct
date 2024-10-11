@@ -12,7 +12,7 @@
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 import React, { useEffect, useState, useRef } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid, Checkbox, IconButton} from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid, Checkbox, IconButton, TextField} from '@mui/material';
 import { Helmet } from 'react-helmet';
 import Confetti from 'react-confetti';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
@@ -231,6 +231,35 @@ function App() {
         >
           Get Latest Almanac
         </Button>
+
+        <Grid item xs={12}>
+          <Typography variant="h6" gutterBottom>
+            Time Control (GPST)
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Checkbox
+              checked={useCurrentTime}
+              onChange={() => setUseCurrentTime(!useCurrentTime)}
+            />
+            <Typography>Use Current Time</Typography>
+            {!useCurrentTime && (
+              <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
+                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset - 15 * 60)}>
+                  <ArrowDownward />
+                </IconButton>
+                <TextField
+                  label="GPST Time (seconds)"
+                  type="number"
+                  value={Math.floor((Date.now() / 1000) + 18 + manualTimeOffset)}
+                  onChange={(e) => setManualTimeOffset(parseFloat(e.target.value) - (Date.now() / 1000) - 18)}
+                />
+                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset + 15 * 60)}>
+                  <ArrowUpward />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
+        </Grid>
       </Container>
 
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
@@ -272,32 +301,6 @@ function App() {
 
         <Grid item xs={12}>
           <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Time Control
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Checkbox
-              checked={useCurrentTime}
-              onChange={() => setUseCurrentTime(!useCurrentTime)}
-            />
-            <Typography>Use Current Time</Typography>
-            {!useCurrentTime && (
-              <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset - 60)}>
-                  <ArrowDownward />
-                </IconButton>
-                <Typography>
-                  {manualTimeOffset >= 0 ? `+${manualTimeOffset}` : `${manualTimeOffset}`} seconds
-                </Typography>
-                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset + 60)}>
-                  <ArrowUpward />
-                </IconButton>
-              </Box>
-            )}
-          </Box>
         </Grid>
       </Stack>
     </ThemeProvider>
