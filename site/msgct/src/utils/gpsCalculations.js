@@ -92,10 +92,13 @@ export const calculateElevationAzimuth = (satellitePosition, userPosition) => {
   const f = 1 / 298.257223563; // WGS-84 flattening factor
   const e2 = f * (2 - f); // Square of Earth's eccentricity
 
-  const cosLat = Math.cos(lat);
-  const sinLat = Math.sin(lat);
-  const cosLon = Math.cos(lon);
-  const sinLon = Math.sin(lon);
+  const latRad = (lat * Math.PI) /180;
+  const lonRad = (lon * Math.PI) / 180;
+
+  const cosLat = Math.cos(latRad);
+  const sinLat = Math.sin(latRad);
+  const cosLon = Math.cos(lonRad);
+  const sinLon = Math.sin(lonRad);
 
   // Calculate radius of curvature in the prime vertical
   const N = a / Math.sqrt(1 - e2 * sinLat * sinLat);
