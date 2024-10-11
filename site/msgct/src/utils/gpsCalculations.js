@@ -6,73 +6,67 @@
 const GM = 3.986005e14; // Gravitational constant for Earth (m^3/s^2)
 const OMEGA_DOT_E = 7.2921151467e-5; // Earth's rotation rate (rad/s)
 
-export const calculateSatellitePosition = (satelliteData, t) => {
+export const calculateSatellitePosition = (satellite, currentTimeGPST) => {
   const {
-    SQRT_A,               // Square root of the semi-major axis (meters^1/2)
-    Eccentricity,         // Eccentricity
-    OrbitalInclination,   // Orbital inclination (radians)
-    RightAscenAtWeek,     // Right ascension of ascending node at reference time (radians)
-    ArgumentOfPerigee,    // Argument of perigee (radians)
-    MeanAnom,             // Mean anomaly at reference time (radians)
-    TimeOfApplicability,  // Reference time (seconds)
-    RateOfRightAscen      // Rate of right ascension (OMEGA_DOT) (rad/s)
-  } = satelliteData;
+    Eccentricity,
+    OrbitalInclination,
+    RateOfRightAscen,
+    RightAscenAtWeek,
+    ArgumentOfPerigee,
+    MeanAnom,
+    Af0,
+    Af1,
+    TimeOfApplicability
+  } = satellite;
 
-  // Convert SQRT_A to semi-major axis
-  const semiMajorAxis = Math.pow(SQRT_A, 2);
-
-  // Compute mean motion (n)
-  const meanMotion = Math.sqrt(GM / Math.pow(semiMajorAxis, 3));
-
-  // Time since epoch (seconds)
-  const deltaT = t - TimeOfApplicability;
-
-  // Calculate the mean anomaly at time t
-  const meanAnomaly = MeanAnom + meanMotion * deltaT;
-
-  // Normalize mean anomaly to between 0 and 2π
-  const normalizedMeanAnomaly = meanAnomaly % (2 * Math.PI);
-
-  // Solve Kepler's equation for eccentric anomaly (iterative method)
-  let eccentricAnomaly = normalizedMeanAnomaly;
-  let previousEccentricAnomaly = 0;
-  const tolerance = 1e-12;
-
-  while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance) {
-    previousEccentricAnomaly = eccentricAnomaly;
-    eccentricAnomaly =
-      normalizedMeanAnomaly + Eccentricity * Math.sin(eccentricAnomaly);
-  }
-
-  // Calculate the true anomaly
-  const trueAnomaly = 2 * Math.atan2(
-    Math.sqrt(1 + Eccentricity) * Math.sin(eccentricAnomaly / 2),
-    Math.sqrt(1 - Eccentricity) * Math.cos(eccentricAnomaly / 2)
-  );
-
-  // Calculate the distance to the satellite
-  const distance = semiMajorAxis * (1 - Eccentricity * Math.cos(eccentricAnomaly));
-
-  // Compute the argument of latitude
-  const argumentOfLatitude = ArgumentOfPerigee + trueAnomaly;
-
-  // Correct the right ascension of ascending node
-  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * deltaT - OMEGA_DOT_E * TimeOfApplicability;
-
-  // Position in orbital plane
-  const xOrbital = distance * Math.cos(argumentOfLatitude);
-  const yOrbital = distance * Math.sin(argumentOfLatitude);
-
-  // Calculate ECEF coordinates (x, y, z)
+  // Constants
+  const mu = 3.986005e14; // Earth's gravitational constant in m^3/s^2
+  const semiMajorAxis = 26560e3; // Approximate semi-major axis for GPS satellites in meters
+  const n0 = Math.sqrt(mu / Math.pow(semiMajorAxis, 3)); // Mean motion
+  
+  // Calculate time difference from TimeOfApplicability
+  const t = currentTimeGPST - TimeOfApplicability;
+  
+  // Calculate the corrected mean anomaly
+  const M = MeanAnom + n0 * t;
+  
+  // Solve Kepler's equation for the Eccentric Anomaly (E)
+  const solveKepler = (M, e, tolerance = 1e-8) => {
+    let E = M;
+    let delta = 1;
+    while (Math.abs(delta) > tolerance) {
+      delta = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+      E -= delta;
+    }
+    return E;
+  };
+  const E = solveKepler(M, Eccentricity);
+  
+  // Calculate True Anomaly (ν)
+  const sinV = Math.sqrt(1 - Eccentricity ** 2) * Math.sin(E) / (1 - Eccentricity * Math.cos(E));
+  const cosV = (Math.cos(E) - Eccentricity) / (1 - Eccentricity * Math.cos(E));
+  const trueAnomaly = Math.atan2(sinV, cosV);
+  
+  // Calculate radius (r)
+  const r = semiMajorAxis * (1 - Eccentricity * Math.cos(E));
+  
+  // Position in the orbital plane
+  const xOrbital = r * Math.cos(trueAnomaly);
+  const yOrbital = r * Math.sin(trueAnomaly);
+  
+  // Correct for argument of perigee and inclination
+  const cosArgPerigee = Math.cos(ArgumentOfPerigee);
+  const sinArgPerigee = Math.sin(ArgumentOfPerigee);
   const cosInclination = Math.cos(OrbitalInclination);
   const sinInclination = Math.sin(OrbitalInclination);
-
-  const x = xOrbital * Math.cos(correctedRightAscension) - yOrbital * Math.sin(correctedRightAscension) * cosInclination;
-  const y = xOrbital * Math.sin(correctedRightAscension) + yOrbital * Math.cos(correctedRightAscension) * cosInclination;
+  
+  // ECEF coordinates (simplified)
+  const x = xOrbital * cosArgPerigee - yOrbital * sinArgPerigee * cosInclination;
+  const y = xOrbital * sinArgPerigee + yOrbital * cosArgPerigee * cosInclination;
   const z = yOrbital * sinInclination;
 
   return { x, y, z };
-}
+};
 
 
 

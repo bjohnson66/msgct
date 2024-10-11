@@ -114,9 +114,12 @@ function App() {
 
   const updateSatellitePositions = () => {
     if (gpsAlmanacDataGlobal.length > 0) {
-      const currentTime = Date.now() / 1000;
+      const currentTimeUTC = Date.now() / 1000;
+      const gpsUtcOffset = 18; // Adjust this if there are additional leap seconds.
+      const currentTimeGPST = currentTimeUTC + gpsUtcOffset;
+      
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-        const ecefPosition = calculateSatellitePosition(satellite, currentTime);
+        const ecefPosition = calculateSatellitePosition(satellite, currentTimeGPST);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
         return { ID: satellite.ID, elevation, azimuth, snr };
       }).filter((sat) => sat.elevation > 0);
