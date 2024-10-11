@@ -12,9 +12,10 @@
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 import React, { useEffect, useState, useRef } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid, Checkbox, IconButton} from '@mui/material';
 import { Helmet } from 'react-helmet';
 import Confetti from 'react-confetti';
+import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import GPSSatelliteTable from './components/GPSSatelliteTable';
 import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
@@ -73,10 +74,12 @@ function App() {
   const [satelliteHistories, setSatelliteHistories] = useState({});
   const [darkMode, setDarkMode] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const intervalRef = useRef(null);
   const [positionSource, setPositionSource] = useState('manual');
   const [manualPosition, setManualPosition] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
   const [userPositionState, setUserPositionState] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
+  const [useCurrentTime, setUseCurrentTime] = useState(true);
+  const [manualTimeOffset, setManualTimeOffset] = useState(0); // Offset in seconds
+  const intervalRef = useRef(null);
 
   const handlePositionSourceChange = (event) => {
     setPositionSource(event.target.value);
@@ -115,7 +118,12 @@ function App() {
   const updateSatellitePositions = () => {
     if (gpsAlmanacDataGlobal.length > 0) {
       const UTC_GPST_OFFSET = 18;
-      const currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
+      let currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
+
+      if (!useCurrentTime) {
+        currentTime += manualTimeOffset;
+      }
+
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
         const ecefPosition = calculateSatellitePosition(satellite, currentTime);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
@@ -134,7 +142,11 @@ function App() {
       const timeStep = 60; // Time step in seconds
       const numberOfSteps = Math.floor(timeWindow / timeStep);
       const histories = {};
-      const currentTime = Date.now() / 1000;
+      let currentTime = Date.now() / 1000;
+
+      if (!useCurrentTime) {
+        currentTime += manualTimeOffset;
+      }
 
       for (let i = numberOfSteps; i >= 0; i--) {
         const t = currentTime - i * timeStep;
@@ -234,11 +246,8 @@ function App() {
               Live Sky Plot
             </Typography>
             {SkyPlot && (
-            <Grid item xs={12} md={6}>
               <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} darkMode={darkMode} />
-            </Grid>
-          )}s
-            
+            )}
           </Grid>
         </Grid>
 
@@ -264,10 +273,35 @@ function App() {
         <Grid item xs={12}>
           <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
         </Grid>
+        
+        <Grid item xs={12}>
+          <Typography variant="h6" gutterBottom>
+            Time Control
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Checkbox
+              checked={useCurrentTime}
+              onChange={() => setUseCurrentTime(!useCurrentTime)}
+            />
+            <Typography>Use Current Time</Typography>
+            {!useCurrentTime && (
+              <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
+                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset - 60)}>
+                  <ArrowDownward />
+                </IconButton>
+                <Typography>
+                  {manualTimeOffset >= 0 ? `+${manualTimeOffset}` : `${manualTimeOffset}`} seconds
+                </Typography>
+                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset + 60)}>
+                  <ArrowUpward />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
+        </Grid>
       </Stack>
     </ThemeProvider>
   );
 }
 
 export default App;
-
