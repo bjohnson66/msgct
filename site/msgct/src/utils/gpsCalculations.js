@@ -84,7 +84,7 @@ export const calculateSatellitePosition = (satelliteData, t) => {
 // Function to convert ECEF coordinates of a satellite to topocentric (ENU) coordinates
 // Takes in satellite position {x, y, z} and user position {lat, lon, alt} (latitude, longitude in radians)
 export const calculateElevationAzimuth = (satellitePosition, userPosition) => {
-  const { lat, lon, alt } = userPosition; // User's geodetic position (latitude and longitude in radians)
+  const { latDegrees, lonDegrees, alt } = userPosition; // User's geodetic position (latitude and longitude in radians)
   const { x: xs, y: ys, z: zs } = satellitePosition; // Satellite's position in ECEF coordinates
 
   // Convert user's geodetic position to ECEF coordinates
@@ -92,10 +92,13 @@ export const calculateElevationAzimuth = (satellitePosition, userPosition) => {
   const f = 1 / 298.257223563; // WGS-84 flattening factor
   const e2 = f * (2 - f); // Square of Earth's eccentricity
 
-  const cosLat = Math.cos(lat);
-  const sinLat = Math.sin(lat);
-  const cosLon = Math.cos(lon);
-  const sinLon = Math.sin(lon);
+  const latRadians = (latDegrees * Math.PI) / 180;
+  const lonRadians = (lonDegrees * Math.PI) / 180;
+
+  const cosLat = Math.cos(latRadians);
+  const sinLat = Math.sin(latRadians);
+  const cosLon = Math.cos(lonRadians);
+  const sinLon = Math.sin(lonRadians);
 
   // Calculate radius of curvature in the prime vertical
   const N = a / Math.sqrt(1 - e2 * sinLat * sinLat);
