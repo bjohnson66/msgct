@@ -1,80 +1,100 @@
 //-------------------------------------
 // GPS Satellite Calculaitons - ECEF
 //--------------------------------------
-//See: https://gssc.esa.int/navipedia/index.php?title=GPS_and_Galileo_Satellite_Coordinates_Computation
-// Constants
+//See: https://www.gps.gov/technical/icwg/meetings/2019/09/GPS-SV-velocity-and-acceleration.pdf
 const GM = 3.986005e14; // Gravitational constant for Earth (m^3/s^2)
 const OMEGA_DOT_E = 7.2921151467e-5; // Earth's rotation rate (rad/s)
 
-export const calculateSatellitePosition = (satelliteData, t) => {
+export const calculateSatellitePosition = (
+  satelliteData,
+  t,
+  deltaN = 0,
+  cuc = 0,  // Default to 0 if not provided
+  cus = 0,  // Default to 0 if not provided
+  crc = 0,  // Default to 0 if not provided
+  crs = 0,  // Default to 0 if not provided
+  cic = 0,  // Default to 0 if not provided
+  cis = 0,  // Default to 0 if not provided
+  IDOT = 0  // Default to 0 if not provided
+) => {
   const {
-    SQRT_A,               // Square root of the semi-major axis (meters^1/2)
-    Eccentricity,         // Eccentricity
-    OrbitalInclination,   // Orbital inclination (radians)
-    RightAscenAtWeek,     // Right ascension of ascending node at reference time (radians)
-    ArgumentOfPerigee,    // Argument of perigee (radians)
-    MeanAnom,             // Mean anomaly at reference time (radians)
-    TimeOfApplicability,  // Reference time (seconds)
-    RateOfRightAscen      // Rate of right ascension (OMEGA_DOT) (rad/s)
+    SQRT_A,
+    Eccentricity,
+    OrbitalInclination,
+    RightAscenAtWeek,
+    ArgumentOfPerigee,
+    MeanAnom,
+    TimeOfApplicability,
+    RateOfRightAscen
   } = satelliteData;
+
 
   // Convert SQRT_A to semi-major axis
   const semiMajorAxis = Math.pow(SQRT_A, 2);
 
   // Compute mean motion (n)
-  const meanMotion = Math.sqrt(GM / Math.pow(semiMajorAxis, 3));
-
-  // Time since epoch (seconds)
-  const deltaT = t - TimeOfApplicability;
+  const meanMotion = Math.sqrt(GM / Math.pow(semiMajorAxis, 3)) + deltaN; // Corrected mean motion (n)
+  
+  // Time from ephemeris reference epoch
+  let delta_t = t - TimeOfApplicability;
+  if (delta_t > 302400) delta_t -= 604800; // Week crossover correction
+  if (delta_t < -302400) delta_t += 604800;
 
   // Calculate the mean anomaly at time t
-  const meanAnomaly = MeanAnom + meanMotion * deltaT;
+  const meanAnomaly = MeanAnom + meanMotion * delta_t;
 
-  // Normalize mean anomaly to between 0 and 2π
-  let normalizedMeanAnomaly = meanAnomaly % (2 * Math.PI);
-  if (normalizedMeanAnomaly < 0) normalizedMeanAnomaly += 2 * Math.PI;
-
-  // Solve Kepler's equation for eccentric anomaly (using Newton-Raphson method)
-  let eccentricAnomaly = normalizedMeanAnomaly;
-  let previousEccentricAnomaly;
-  const tolerance = 1e-12;
-  do {
-    previousEccentricAnomaly = eccentricAnomaly;
-    eccentricAnomaly =
-      previousEccentricAnomaly - 
-      (previousEccentricAnomaly - Eccentricity * Math.sin(previousEccentricAnomaly) - normalizedMeanAnomaly) /
-      (1 - Eccentricity * Math.cos(previousEccentricAnomaly));
-  } while (Math.abs(eccentricAnomaly - previousEccentricAnomaly) > tolerance);
+  // Solve Kepler's equation for eccentric anomaly
+  let eccentricAnomaly = meanAnomaly; // Initial guess
+  for (let i = 0; i < 3; i++) {
+    const nextEccentricAnomaly = eccentricAnomaly + (meanAnomaly - (eccentricAnomaly - Eccentricity * Math.sin(eccentricAnomaly))) / (1 - Eccentricity * Math.cos(eccentricAnomaly));
+    eccentricAnomaly = nextEccentricAnomaly;
+  }
 
   // Calculate the true anomaly
-  const trueAnomaly = 2 * Math.atan2(
-    Math.sqrt(1 + Eccentricity) * Math.sin(eccentricAnomaly / 2),
-    Math.sqrt(1 - Eccentricity) * Math.cos(eccentricAnomaly / 2)
+  // const trueAnomaly = 2 * Math.atan(
+  //   Math.sqrt((1 + Eccentricity) / (1 - Eccentricity)) * Math.tan(eccentricAnomaly / 2)
+  // );
+  const trueAnomaly = Math.atan2(
+    Math.sqrt(1 - Eccentricity * Eccentricity) * Math.sin(eccentricAnomaly),
+    Math.cos(eccentricAnomaly) - Eccentricity
   );
+  
+  // Argument of latitude
+  const argumentOfLatitude = trueAnomaly + ArgumentOfPerigee;
 
-  // Calculate the distance to the satellite
-  const distance = semiMajorAxis * (1 - Eccentricity * Math.cos(eccentricAnomaly));
+  // Latitude correction
+  const latitudeCorrection = cus * Math.sin(2 * argumentOfLatitude) + cuc * Math.cos(2 * argumentOfLatitude);
 
-  // Compute the argument of latitude
-  const argumentOfLatitude = ArgumentOfPerigee + trueAnomaly;
+  // Radius correction
+  const radiusCorrection = crs * Math.sin(2 * argumentOfLatitude) + crc * Math.cos(2 * argumentOfLatitude);
 
-  // Correct the right ascension of ascending node
-  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * deltaT;
+  // Inclination correction
+  const inclinationCorrection = cis * Math.sin(2 * argumentOfLatitude) + cic * Math.cos(2 * argumentOfLatitude);
 
-  // Position in orbital plane
-  const xOrbital = distance * Math.cos(argumentOfLatitude);
-  const yOrbital = distance * Math.sin(argumentOfLatitude);
+  // Corrected argument of latitude
+  const correctedArgumentOfLatitude = argumentOfLatitude + latitudeCorrection;
 
-  // Calculate ECEF coordinates (x, y, z)
-  const cosInclination = Math.cos(OrbitalInclination);
-  const sinInclination = Math.sin(OrbitalInclination);
+  // Corrected radius
+  const correctedRadius = semiMajorAxis * (1 - Eccentricity * Math.cos(eccentricAnomaly)) + radiusCorrection;
 
-  const x = xOrbital * Math.cos(correctedRightAscension) - yOrbital * Math.sin(correctedRightAscension) * cosInclination;
-  const y = xOrbital * Math.sin(correctedRightAscension) + yOrbital * Math.cos(correctedRightAscension) * cosInclination;
-  const z = yOrbital * sinInclination;
+  // Corrected inclination
+  const correctedInclination = OrbitalInclination + inclinationCorrection + (IDOT * delta_t);
+
+  // Orbital plane positions (x', y')
+  const xOrbitalPlane = correctedRadius * Math.cos(correctedArgumentOfLatitude);
+  const yOrbitalPlane = correctedRadius * Math.sin(correctedArgumentOfLatitude);
+
+  // Corrected right ascension of ascending node
+  const correctedRightAscension = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * delta_t - OMEGA_DOT_E * TimeOfApplicability;
+
+  // Earth-fixed coordinates (x, y, z)
+  const x = xOrbitalPlane * Math.cos(correctedRightAscension) - yOrbitalPlane * Math.cos(correctedInclination) * Math.sin(correctedRightAscension);
+  const y = xOrbitalPlane * Math.sin(correctedRightAscension) + yOrbitalPlane * Math.cos(correctedInclination) * Math.cos(correctedRightAscension);
+  const z = yOrbitalPlane * Math.sin(correctedInclination);
 
   return { x, y, z };
-}
+};
+
 
 
 
