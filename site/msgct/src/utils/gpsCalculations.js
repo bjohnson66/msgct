@@ -47,17 +47,15 @@ export const calculateSatellitePosition = (
   // Solve Kepler's equation for eccentric anomaly
   let E_0 = M_k; // Initial guess eccentricAnomaly
   let E_j_minus_one = E_0;
-  let E_j = 0;
+  let E_j;
   for (let j = 0; j < 3; j++) {
     E_j = E_j_minus_one + ((M_k - E_j_minus_one + Eccentricity * Math.sin(E_j_minus_one))/
                                   (1- Eccentricity * Math.cos(E_j_minus_one)));
+    E_j_minus_one = E_j;
   }
   let E_k = E_j; //Final calue E_k = E_3
 
   // Calculate the true anomaly
-  // const trueAnomaly = 2 * Math.atan(
-  //   Math.sqrt((1 + Eccentricity) / (1 - Eccentricity)) * Math.tan(eccentricAnomaly / 2)
-  // );
   let v_k = 2* (Math.atan(Math.sqrt((1+Eccentricity)/(1-Eccentricity))*Math.tan(E_k/2)));
   
   // Argument of latitude
