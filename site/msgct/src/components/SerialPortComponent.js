@@ -46,8 +46,8 @@ function SerialPortComponent({ onPositionUpdate }) {
           selectedPort.addEventListener('disconnect', handlePortDisconnect);
   
           const textDecoder = new TextDecoderStream();
-          //#TODO Alex, this line is unused possibly related to the bug you have been seeing.
-          //const readableStreamClosed = selectedPort.readable.pipeTo(textDecoder.writable);
+          //TESTING -Alex
+          const readableStreamClosed = selectedPort.readable.pipeTo(textDecoder.writable);
           const reader = textDecoder.readable.getReader();
           readerRef.current = reader;
   
@@ -78,10 +78,10 @@ function SerialPortComponent({ onPositionUpdate }) {
   
           readLoop();
   
-          // Start the timer to update the table every 4 seconds
+          // Start the timer to update the table every 2 seconds
           timerRef.current = setInterval(() => {
             processSerialData();
-          }, 4000);
+          }, 2000);
         } catch (error) {
           console.error('Error opening serial port:', error);
         }
@@ -171,7 +171,7 @@ function SerialPortComponent({ onPositionUpdate }) {
       const lines = data.split('\n');
   
       // Use an object to store satellites by PRN to prevent duplicates
-      const satellitesByPRN = {};
+      const satellitesByID = {};
   
       lines.forEach((line) => {
         line = line.trim();
@@ -185,7 +185,7 @@ function SerialPortComponent({ onPositionUpdate }) {
           const satelliteInfo = parseGSV(line);
           if (satelliteInfo && satelliteInfo.length > 0) {
             satelliteInfo.forEach((satellite) => {
-              satellitesByPRN[satellite.prn] = satellite; // Overwrite if PRN already exists
+              satellitesByID[satellite.ID] = satellite; // Overwrite if PRN already exists
             });
           }
         } else if (
@@ -202,7 +202,13 @@ function SerialPortComponent({ onPositionUpdate }) {
         }
       });
   
-      const parsedData = Object.values(satellitesByPRN);
+      let parsedData = Object.values(satellitesByID);
+
+      parsedData.sort((a, b) => {
+        const idA = parseInt(a.ID, 10);
+        const idB = parseInt(b.ID, 10);
+        return idA - idB;
+      })
   
       if (parsedData.length > 0) {
         setSerialTableData(parsedData); // Replace the state with deduplicated data
@@ -211,43 +217,32 @@ function SerialPortComponent({ onPositionUpdate }) {
   
     // Function to parse GSV sentences
     const parseGSV = (sentence) => {
-      // Split the sentence into fields
       const fields = sentence.split(',');
-      // GSV sentences have the following format:
-      // $GxGSV,totalNumberOfSentences,sentenceNumber,numberOfSVsInView,
-      //   [satellitePRN1,elevation1,azimuth1,SNR1, ... up to 4 satellites per sentence],*checksum
-  
+    
       if (fields.length < 4) {
         console.error('Invalid GSV sentence:', sentence);
         return [];
       }
-  
-      // const totalSentences = parseInt(fields[1], 10);
-      // const sentenceNumber = parseInt(fields[2], 10);
-      // const numberOfSVs = parseInt(fields[3], 10);
-  
+    
       const satellites = [];
-  
-      // Each GSV sentence contains data for up to 4 satellites
-      // Satellite data starts from field index 4
+      
+      // Parse satellites data from GSV sentence
       for (let i = 4; i < fields.length - 1; i += 4) {
         const prn = fields[i];
         const elevation = fields[i + 1];
         const azimuth = fields[i + 2];
-        const snr = fields[i + 3]; // Signal-to-noise ratio (SNR) in dB-Hz
-  
+        const snr = fields[i + 3];
+    
         if (prn) {
           satellites.push({
-            prn: prn,
-            elevation: elevation || '',
-            azimuth: azimuth || '',
-            signalStrength: snr || '',
-            health: '', // NMEA GSV sentences do not provide health information
-            blockType: '', // NMEA GSV sentences do not provide block type
+            ID: prn,                   // Change 'prn' to 'ID' to match GPSSatelliteTable
+            elevation: parseFloat(elevation) || 0,  // Ensure numeric values are passed
+            azimuth: parseFloat(azimuth) || 0,
+            snr: parseFloat(snr) || 0,             // Change to 'snr' to match table
           });
         }
       }
-  
+    
       return satellites;
     };
   

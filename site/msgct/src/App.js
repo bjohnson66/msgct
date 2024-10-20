@@ -316,7 +316,8 @@ function App() {
         </Grid>
 
         <Grid item xs={12}>
-          <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
+         <SerialPortComponent onPositionUpdate={(position) => setUserPositionState(position)} />
+
         </Grid>
       </Stack>
     </ThemeProvider>
