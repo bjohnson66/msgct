@@ -84,7 +84,7 @@ function SkyPlot({ satellites, satelliteHistories, darkMode }) {
   
         // Plot satellites and their tails
         satellites.forEach((sat) => {
-          const { azimuth, elevation, ID } = sat;
+          const { azimuth, elevation, ID, health } = sat;
   
           // Convert azimuth and elevation to position
           const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
@@ -129,11 +129,24 @@ function SkyPlot({ satellites, satelliteHistories, darkMode }) {
           }
   
           // Draw satellite point
-          g.append('circle')
-            .attr('cx', x)
-            .attr('cy', y)
-            .attr('r', 5)
-            .attr('fill', satelliteColor);
+          if (health === "000") {  // Check if satellite is healthy
+            g.append('circle')
+              .attr('cx', x)
+              .attr('cy', y)
+              .attr('r', 5)
+              .attr('fill', satelliteColor);
+          } else {
+            // Draw an "X" for unhealthy satellites
+            const size = 5;
+            g.append('line')
+              .attr('x1', x - size).attr('y1', y - size)
+              .attr('x2', x + size).attr('y2', y + size)
+              .attr('stroke', satelliteColor).attr('stroke-width', 2);
+            g.append('line')
+              .attr('x1', x - size).attr('y1', y + size)
+              .attr('x2', x + size).attr('y2', y - size)
+              .attr('stroke', satelliteColor).attr('stroke-width', 2);
+          }
   
           // Add label
           g.append('text')

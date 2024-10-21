@@ -186,7 +186,9 @@ function App() {
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
         const ecefPosition = calculateSatellitePosition(satellite, currentTime);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
-        return { ID: satellite.ID, elevation, azimuth, snr };
+        const health = satellite.Health;
+        console.log(satellite.Health);
+        return { ID: satellite.ID, elevation, azimuth, snr, health};
       }).filter((sat) => sat.elevation > MASK_ANGLE);
   
       setComputedSatellitesGlobal(computedSatellites);
@@ -302,6 +304,14 @@ function App() {
               </Box>
             )}
           </Box>
+          <Grid item xs={12} md={6}>
+            <Typography variant="h6" gutterBottom>
+              Live Sky Plot
+            </Typography>
+            {SkyPlot && (
+              <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} darkMode={darkMode} />
+            )}
+          </Grid>
         </Grid>
       </Container>
 
@@ -312,14 +322,6 @@ function App() {
               GPS Satellite Data
             </Typography>
             <GPSSatelliteTable tableSatellites={tableSatellites} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>
-              Live Sky Plot
-            </Typography>
-            {SkyPlot && (
-              <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} darkMode={darkMode} />
-            )}
           </Grid>
         </Grid>
 
