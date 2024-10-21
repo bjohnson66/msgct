@@ -3,7 +3,7 @@
 //-------------------------------------
 export const fetchAlmanacData = async () => {
     try {
-      const response = await fetch('/sv_data/gps_data/gps_20241017_140843.json');
+      const response = await fetch('/sv_data/gps_data/gps_20241020_200057.json');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

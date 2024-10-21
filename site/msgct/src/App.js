@@ -66,6 +66,8 @@ export const getComputedSatellitesGlobal = () => computedSatellitesGlobal;
 
 const initialTableSatellites = [];
 
+
+
 //--------------------------------------
 //  Main App Component
 //--------------------------------------
@@ -78,7 +80,10 @@ function App() {
   const [manualPosition, setManualPosition] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
   const [userPositionState, setUserPositionState] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
   const [useCurrentTime, setUseCurrentTime] = useState(true);
-  const [manualTimeOffset, setManualTimeOffset] = useState(0); // Offset in seconds
+  const [manualGPST, setManualGPST] = useState(Math.floor((Date.now() / 1000) - 18 - 315964800));
+  const [gpsWeekNumber, setGpsWeekNumber] = useState(0);
+  const MASK_ANGLE = 5; //degrees above horizon
+
   const intervalRef = useRef(null);
 
   const handlePositionSourceChange = (event) => {
@@ -90,6 +95,32 @@ function App() {
       setUserPositionState(position);
     }
   };
+
+  const getCurrentTime = useCallback(() => {
+    const UTC_GPST_OFFSET = 18;
+    const GPS_SEC_IN_WEEK = 604800;
+    const UNIX_GPS_EPOCH_DIFF = 315964800; // Difference between Unix and GPS epoch
+    const MAGIC_NUMBER_OFFSET_AKA_14_HOURS = 14 * 3600;
+
+        let currentTime = (Date.now() / 1000) - UTC_GPST_OFFSET - UNIX_GPS_EPOCH_DIFF;
+    
+        if (!useCurrentTime) {
+          currentTime = manualGPST;
+        }
+  
+        //We need to make sure that time is properly accounting for GPST week and GPST ToW
+        //This line means that current time is the number of seconds since the GPS week that the almanac is from
+        // In a sense, currentTime is now in GPS ToW but we don't need to worry about making sure it is bounded,
+        // Adjust the current time to the GPS Time of Week by subtracting the number of seconds since the start of the GPS week
+        currentTime -= (gpsWeekNumber * GPS_SEC_IN_WEEK);
+        currentTime -= MAGIC_NUMBER_OFFSET_AKA_14_HOURS; //I dont like this why are we 14 hours ahead?
+
+        // ToW may roll over, so ensure it's bounded within a single week (0 to 604800 seconds)
+        currentTime = currentTime % GPS_SEC_IN_WEEK;
+
+        console.log("Current Time of Week:", currentTime);
+        return currentTime;
+  }, [useCurrentTime, manualGPST, gpsWeekNumber]);
 
   useEffect(() => {
     if (positionSource === 'device') {
@@ -121,11 +152,7 @@ function App() {
       const timeStep = 60; // Time step in seconds
       const numberOfSteps = Math.floor(timeWindow / timeStep);
       const histories = {};
-      let currentTime = Date.now() / 1000;
-  
-      if (!useCurrentTime) {
-        currentTime += manualTimeOffset;
-      }
+      let currentTime = getCurrentTime();
   
       for (let i = numberOfSteps; i >= 0; i--) {
         const t = currentTime - i * timeStep;
@@ -134,40 +161,39 @@ function App() {
           const ecefPosition = calculateSatellitePosition(satellite, t);
           const { elevation, azimuth } = calculateElevationAzimuth(ecefPosition, getUserPosition());
           return { ID: satellite.ID, elevation, azimuth, timestamp: t };
-        }).filter((sat) => sat.elevation > 0);
+        });
   
         computedSatellites.forEach((sat) => {
           if (!histories[sat.ID]) {
             histories[sat.ID] = [];
           }
-          histories[sat.ID].push({ elevation: sat.elevation, azimuth: sat.azimuth, timestamp: sat.timestamp });
+          if (sat.elevation <= 0){
+            histories[sat.ID].push({ elevation: 0, azimuth: sat.azimuth, timestamp: sat.timestamp });
+          } else{
+            histories[sat.ID].push({ elevation: sat.elevation, azimuth: sat.azimuth, timestamp: sat.timestamp });
+          }
         });
       }
   
       setSatelliteHistories(histories);
     }
-  }, [manualTimeOffset, useCurrentTime]);
+  }, [getCurrentTime]);
   
   const updateSatellitePositions = useCallback(() => {
     if (gpsAlmanacDataGlobal.length > 0) {
-      const UTC_GPST_OFFSET = 18;
-      let currentTime = (Date.now() / 1000) + UTC_GPST_OFFSET;
-  
-      if (!useCurrentTime) {
-        currentTime += manualTimeOffset;
-      }
+      let currentTime = getCurrentTime();
   
       const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
         const ecefPosition = calculateSatellitePosition(satellite, currentTime);
         const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
         return { ID: satellite.ID, elevation, azimuth, snr };
-      }).filter((sat) => sat.elevation > 0);
+      }).filter((sat) => sat.elevation > MASK_ANGLE);
   
       setComputedSatellitesGlobal(computedSatellites);
       setTableSatellites(computedSatellites);
       calculateHistories();
     }
-  }, [manualTimeOffset, useCurrentTime, calculateHistories]);
+  }, [getCurrentTime, calculateHistories]);
   
   
   useEffect(() => {
@@ -194,6 +220,7 @@ function App() {
       setTimeout(() => setShowConfetti(false), 3500);
 
       const data = await fetchAlmanacData();
+      setGpsWeekNumber(data.week);
       setGpsAlmanacDataGlobal(data.satellites);
       updateSatellitePositions();
 
@@ -260,16 +287,16 @@ function App() {
             <Typography>Use Current Time</Typography>
             {!useCurrentTime && (
               <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset - 15 * 60)}>
+                <IconButton onClick={() => setManualGPST(manualGPST - 15 * 60)}>
                   <ArrowDownward />
                 </IconButton>
                 <TextField
                   label="GPST Time (seconds)"
                   type="number"
-                  value={Math.floor((Date.now() / 1000) + 18 + manualTimeOffset)}
-                  onChange={(e) => setManualTimeOffset(parseFloat(e.target.value) - (Date.now() / 1000) - 18)}
+                  value={manualGPST}
+                  onChange={(e) => setManualGPST(parseFloat(e.target.value))}
                 />
-                <IconButton onClick={() => setManualTimeOffset(manualTimeOffset + 15 * 60)}>
+                <IconButton onClick={() => setManualGPST(manualGPST + (15 * 60))}>
                   <ArrowUpward />
                 </IconButton>
               </Box>

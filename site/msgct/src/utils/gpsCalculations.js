@@ -36,7 +36,7 @@ export const calculateSatellitePosition = (
   let n_0 = Math.sqrt(mu / Math.pow(A, 3));
   let n = n_0 + deltaN; // Corrected mean motion (n)
 
-  // Time from ephemeris reference epoch #TODO
+  // Time from ephemeris reference epoch
   let t_k = t - TimeOfApplicability;
   if (t_k > 302400) t_k -= 604800; // Week crossover correction
   if (t_k < -302400) t_k += 604800;
