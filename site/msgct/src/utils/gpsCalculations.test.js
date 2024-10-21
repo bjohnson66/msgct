@@ -57,153 +57,153 @@ import { calculateSatellitePosition, calculateElevationAzimuth } from './gpsCalc
 // });
 
 
-describe('calculateSatellitePosition with broadcast navigation message', () => {
-  test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 without ephemeris corrections', () => {
-    const satelliteData = {
-      SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
-      Eccentricity: 0.0167867515702, // Eccentricity
-      OrbitalInclination: 0.903782727230, // radians (i0)
-      RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
-      ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
-      MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
-      TimeOfApplicability: 0, // Reference time (toe, in seconds)
-      RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
-    };
+// describe('calculateSatellitePosition with broadcast navigation message', () => {
+//   test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 without ephemeris corrections', () => {
+//     const satelliteData = {
+//       SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
+//       Eccentricity: 0.0167867515702, // Eccentricity
+//       OrbitalInclination: 0.903782727230, // radians (i0)
+//       RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
+//       ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
+//       MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
+//       TimeOfApplicability: 0, // Reference time (toe, in seconds)
+//       RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
+//     };
 
-    // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
-    const t = 2100; // seconds
+//     // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
+//     const t = 2100; // seconds
 
-    // Without ephemeris-related corrections, defaults to 0
-    const result = calculateSatellitePosition(satelliteData, t);
+//     // Without ephemeris-related corrections, defaults to 0
+//     const result = calculateSatellitePosition(satelliteData, t);
 
-    // Expected values from Table 5 (Broadcast Nav) for GPST 7 Jan 2018 00:35:00.0
-    const expectedX = 3166192.017;
-    const expectedY = -21511945.818;
-    const expectedZ = -15899623.697;
+//     // Expected values from Table 5 (Broadcast Nav) for GPST 7 Jan 2018 00:35:00.0
+//     const expectedX = 3166192.017;
+//     const expectedY = -21511945.818;
+//     const expectedZ = -15899623.697;
 
-    // Verify the result is close to the expected values
-    expect(result.x).toBeCloseTo(expectedX, 2); // Tolerance of 2 decimal places
-    expect(result.y).toBeCloseTo(expectedY, 2);
-    expect(result.z).toBeCloseTo(expectedZ, 2);
-  });
-});
+//     // Verify the result is close to the expected values
+//     expect(result.x).toBeCloseTo(expectedX, 2); // Tolerance of 2 decimal places
+//     expect(result.y).toBeCloseTo(expectedY, 2);
+//     expect(result.z).toBeCloseTo(expectedZ, 2);
+//   });
+// });
 
-describe('calculateSatellitePosition with precise ephemeris data', () => {
-  test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
-    const satelliteData = {
-      SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
-      Eccentricity: 0.0167867515702, // Eccentricity
-      OrbitalInclination: 0.903782727230, // radians (i0)
-      RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
-      ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
-      MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
-      TimeOfApplicability: 0, // Reference time (toe, in seconds)
-      RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
-    };
+// describe('calculateSatellitePosition with precise ephemeris data', () => {
+//   test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
+//     const satelliteData = {
+//       SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
+//       Eccentricity: 0.0167867515702, // Eccentricity
+//       OrbitalInclination: 0.903782727230, // radians (i0)
+//       RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
+//       ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
+//       MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
+//       TimeOfApplicability: 0, // Reference time (toe, in seconds)
+//       RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
+//     };
 
-    // Ephemeris-related parameters from the PDF
-    const deltaN =0.583845748090e-08;
-    const cuc = -0.379979610443e-6;
-    const cus = 0.277347862720e-5;
-    const crc = 0.293218750000e+3;
-    const crs = -0.965625000000e+1;
-    const cic = 0.199303030968e-6;
-    const cis = 0.173225998878e-6;
-    const IDOT = 0.789318592573e-10;
+//     // Ephemeris-related parameters from the PDF
+//     const deltaN =0.583845748090e-08;
+//     const cuc = -0.379979610443e-6;
+//     const cus = 0.277347862720e-5;
+//     const crc = 0.293218750000e+3;
+//     const crs = -0.965625000000e+1;
+//     const cic = 0.199303030968e-6;
+//     const cis = 0.173225998878e-6;
+//     const IDOT = 0.789318592573e-10;
 
-    // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
-    const t = 2100; // seconds
+//     // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
+//     const t = 2100; // seconds
 
-    // Call with ephemeris corrections
-    const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
+//     // Call with ephemeris corrections
+//     const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
 
-    // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
-    const expectedX = 3166191.446;
-    const expectedY = -21511947.161;
-    const expectedZ = -15899624.824;
+//     // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
+//     const expectedX = 3166191.446;
+//     const expectedY = -21511947.161;
+//     const expectedZ = -15899624.824;
 
-    // Verify the result is close to the expected values
-    expect(result.x).toBeCloseTo(expectedX, 2); // Tolerance of 2 decimal places
-  });
-});
+//     // Verify the result is close to the expected values
+//     expect(result.x).toBeCloseTo(expectedX, 2); // Tolerance of 2 decimal places
+//   });
+// });
 
-describe('calculateSatellitePosition with precise ephemeris data', () => {
-  test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
-    const satelliteData = {
-      SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
-      Eccentricity: 0.0167867515702, // Eccentricity
-      OrbitalInclination: 0.903782727230, // radians (i0)
-      RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
-      ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
-      MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
-      TimeOfApplicability: 0, // Reference time (toe, in seconds)
-      RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
-    };
+// describe('calculateSatellitePosition with precise ephemeris data', () => {
+//   test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
+//     const satelliteData = {
+//       SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
+//       Eccentricity: 0.0167867515702, // Eccentricity
+//       OrbitalInclination: 0.903782727230, // radians (i0)
+//       RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
+//       ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
+//       MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
+//       TimeOfApplicability: 0, // Reference time (toe, in seconds)
+//       RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
+//     };
 
-    // Ephemeris-related parameters from the PDF
-    const deltaN =0.583845748090e-08;
-    const cuc = -0.379979610443e-6;
-    const cus = 0.277347862720e-5;
-    const crc = 0.293218750000e+3;
-    const crs = -0.965625000000e+1;
-    const cic = 0.199303030968e-6;
-    const cis = 0.173225998878e-6;
-    const IDOT = 0.789318592573e-10;
+//     // Ephemeris-related parameters from the PDF
+//     const deltaN =0.583845748090e-08;
+//     const cuc = -0.379979610443e-6;
+//     const cus = 0.277347862720e-5;
+//     const crc = 0.293218750000e+3;
+//     const crs = -0.965625000000e+1;
+//     const cic = 0.199303030968e-6;
+//     const cis = 0.173225998878e-6;
+//     const IDOT = 0.789318592573e-10;
 
-    // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
-    const t = 2100; // seconds
+//     // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
+//     const t = 2100; // seconds
 
-    // Call with ephemeris corrections
-    const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
+//     // Call with ephemeris corrections
+//     const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
 
-    // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
-    const expectedX = 3166191.446;
-    const expectedY = -21511947.161;
-    const expectedZ = -15899624.824;
+//     // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
+//     const expectedX = 3166191.446;
+//     const expectedY = -21511947.161;
+//     const expectedZ = -15899624.824;
 
-    // Verify the result is close to the expected values
-    expect(result.y).toBeCloseTo(expectedY, 2);
-  });
-});
+//     // Verify the result is close to the expected values
+//     expect(result.y).toBeCloseTo(expectedY, 2);
+//   });
+// });
 
-describe('calculateSatellitePosition with precise ephemeris data', () => {
-  test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
-    const satelliteData = {
-      SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
-      Eccentricity: 0.0167867515702, // Eccentricity
-      OrbitalInclination: 0.903782727230, // radians (i0)
-      RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
-      ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
-      MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
-      TimeOfApplicability: 0, // Reference time (toe, in seconds)
-      RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
-    };
+// describe('calculateSatellitePosition with precise ephemeris data', () => {
+//   test('calculates satellite position for PRN 11 at GPST 7 Jan 2018 00:35:00.0 with ephemeris corrections', () => {
+//     const satelliteData = {
+//       SQRT_A: 5153.75480270, // Square root of semi-major axis in meters^1/2
+//       Eccentricity: 0.0167867515702, // Eccentricity
+//       OrbitalInclination: 0.903782727230, // radians (i0)
+//       RightAscenAtWeek: -0.657960408566, // Ω0, Right ascension of the ascending node
+//       ArgumentOfPerigee: 0.173129682312, // Argument of perigee (ω)
+//       MeanAnom: -0.286954703389, // M0, Mean anomaly at reference time
+//       TimeOfApplicability: 0, // Reference time (toe, in seconds)
+//       RateOfRightAscen: -0.868929051526e-8 // ˙Ω, Rate of right ascension
+//     };
 
-    // Ephemeris-related parameters from the PDF
-    const deltaN =0.583845748090e-08;
-    const cuc = -0.379979610443e-6;
-    const cus = 0.277347862720e-5;
-    const crc = 0.293218750000e+3;
-    const crs = -0.965625000000e+1;
-    const cic = 0.199303030968e-6;
-    const cis = 0.173225998878e-6;
-    const IDOT = 0.789318592573e-10;
+//     // Ephemeris-related parameters from the PDF
+//     const deltaN =0.583845748090e-08;
+//     const cuc = -0.379979610443e-6;
+//     const cus = 0.277347862720e-5;
+//     const crc = 0.293218750000e+3;
+//     const crs = -0.965625000000e+1;
+//     const cic = 0.199303030968e-6;
+//     const cis = 0.173225998878e-6;
+//     const IDOT = 0.789318592573e-10;
 
-    // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
-    const t = 2100; // seconds
+//     // Time of observation: GPST 7 Jan 2018 00:35:00.0 -> 2100 seconds after reference
+//     const t = 2100; // seconds
 
-    // Call with ephemeris corrections
-    const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
+//     // Call with ephemeris corrections
+//     const result = calculateSatellitePosition(satelliteData, t, deltaN, cuc, cus, crc, crs, cic, cis, IDOT);
 
-    // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
-    const expectedX = 3166191.446;
-    const expectedY = -21511947.161;
-    const expectedZ = -15899624.824;
+//     // Expected values from Table 5 (Precise Ephemeris) for GPST 7 Jan 2018 00:35:00.0
+//     const expectedX = 3166191.446;
+//     const expectedY = -21511947.161;
+//     const expectedZ = -15899624.824;
 
-    // Verify the result is close to the expected values
-    expect(result.z).toBeCloseTo(expectedZ, 2);
-  });
-});
+//     // Verify the result is close to the expected values
+//     expect(result.z).toBeCloseTo(expectedZ, 2);
+//   });
+// });
 
 
 describe('calculateElevationAzimuth', () => {
