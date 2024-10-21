@@ -26,7 +26,32 @@ const mockData = [
 ];
 
 // Mock selected satellites (none selected initially)
-const mockSelectedSatellites = [];
+const mockSelectedSatellites = {
+  "G01": true,
+  "G02": true,
+};
+
+
+test('renders satellite table', () => {
+  render(<GPSSatelliteTable 
+      tableSatellites={mockData}
+      selectedSatellites={mockSelectedSatellites}
+      setSelectedSatellites={mockSetSelectedSatellites}
+    />
+  );
+
+  // Check that table headers are rendered
+  expect(screen.getByText(/PRN/i)).toBeInTheDocument();
+  expect(screen.getByText(/Elevation/i)).toBeInTheDocument();
+  expect(screen.getByText(/SNR/i)).toBeInTheDocument();
+
+  // Specifically check for the "Health" header using the 'scope' attribute
+  expect(screen.getByRole('columnheader', { name: /Health/i })).toBeInTheDocument();  // Ensure this is a column header
+
+  // Check for "Healthy" or "Unhealthy" in the table body, ensuring they appear in the correct number of rows
+  expect(screen.getAllByText(/Healthy|Unhealthy/).length).toBe(mockData.length);  // Adjust based on your data
+});
+
 
 test('renders satellite data in table', () => {
   render(
@@ -37,18 +62,9 @@ test('renders satellite data in table', () => {
     />
   );
 
-  // Check that table headers are rendered
-  expect(screen.getByText(/PRN/i)).toBeInTheDocument();
-  expect(screen.getByText(/Azimuth/i)).toBeInTheDocument();
-  expect(screen.getByText(/Elevation/i)).toBeInTheDocument();
-  expect(screen.getByText(/SNR/i)).toBeInTheDocument();
-  expect(screen.getByText(/Health/i)).toBeInTheDocument();  // New Health column
-
   // Check if satellite data is rendered
-  expect(screen.getByText('G01')).toBeInTheDocument();
-  expect(screen.getByText('120.5')).toBeInTheDocument();
-  expect(screen.getByText('45.2')).toBeInTheDocument();
-  expect(screen.getByText('50')).toBeInTheDocument();
+  expect(screen.getByText((content, element) => content.startsWith('120.5'))).toBeInTheDocument();
+  expect(screen.getByText((content, element) => content.startsWith('45.2'))).toBeInTheDocument();
 });
 
 

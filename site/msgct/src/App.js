@@ -91,11 +91,12 @@ function App() {
     setPositionSource(event.target.value);
   };
 
-  const handlePositionUpdate = (position) => {
-    if (positionSource === 'receiver') {
-      setUserPositionState(position);
-    }
-  };
+  //ALEX #TODO
+  // const handlePositionUpdate = (position) => {
+  //   if (positionSource === 'receiver') {
+  //     setUserPositionState(position);
+  //   }
+  // };
 
   const getCurrentTime = useCallback(() => {
     const UTC_GPST_OFFSET = 18;

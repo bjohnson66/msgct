@@ -47,7 +47,7 @@ function SerialPortComponent({ onPositionUpdate }) {
   
           const textDecoder = new TextDecoderStream();
           //TESTING -Alex
-          const readableStreamClosed = selectedPort.readable.pipeTo(textDecoder.writable);
+          //const readableStreamClosed = selectedPort.readable.pipeTo(textDecoder.writable);
           const reader = textDecoder.readable.getReader();
           readerRef.current = reader;
   
