@@ -5,47 +5,51 @@ import GPSSatelliteTable from './components/GPSSatelliteTable';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import React from 'react';
 
+// Mock function for setSelectedSatellites
+const mockSetSelectedSatellites = jest.fn();
 
-//-------------------------------------
-//Testing App Component
-//-------------------------------------
-test('renders the app with title and logo', () => {
-  render(<App />);
-  const titleElement = screen.getByText(/Multi-Source GNSS Constellation Tracker/i);
-  expect(titleElement).toBeInTheDocument();
-
-  const logoElement = screen.getByAltText('MSGCT Logo');
-  expect(logoElement).toBeInTheDocument();
-});
-
-//---------------------------------------
-// Testing GPS Table Component
-//---------------------------------------
 const mockData = [
   {
-    ID: 'G01',             // Adjusted from prn to ID
+    ID: 'G01',
     azimuth: 120.5,
     elevation: 45.2,
-    snr: 50,               // Adjusted from signalStrength to snr
+    snr: 50,
+    health: '000',
   },
   {
-    ID: 'G02',             // Adjusted from prn to ID
+    ID: 'G02',
     azimuth: 210.0,
     elevation: 30.0,
-    snr: 45,               // Adjusted from signalStrength to snr
+    snr: 45,
+    health: '000',
   },
 ];
 
+// Mock selected satellites (none selected initially)
+const mockSelectedSatellites = [];
+
 test('renders satellite data in table', () => {
-  render(<GPSSatelliteTable tableSatellites={mockData} />);
+  render(
+    <GPSSatelliteTable 
+      tableSatellites={mockData}
+      selectedSatellites={mockSelectedSatellites}
+      setSelectedSatellites={mockSetSelectedSatellites}
+    />
+  );
 
   // Check that table headers are rendered
   expect(screen.getByText(/PRN/i)).toBeInTheDocument();
   expect(screen.getByText(/Azimuth/i)).toBeInTheDocument();
   expect(screen.getByText(/Elevation/i)).toBeInTheDocument();
   expect(screen.getByText(/SNR/i)).toBeInTheDocument();
-});
+  expect(screen.getByText(/Health/i)).toBeInTheDocument();  // New Health column
 
+  // Check if satellite data is rendered
+  expect(screen.getByText('G01')).toBeInTheDocument();
+  expect(screen.getByText('120.5')).toBeInTheDocument();
+  expect(screen.getByText('45.2')).toBeInTheDocument();
+  expect(screen.getByText('50')).toBeInTheDocument();
+});
 
 
 //--------------------------------

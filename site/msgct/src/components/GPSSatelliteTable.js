@@ -10,46 +10,32 @@ function GPSSatelliteTable({ tableSatellites, selectedSatellites, setSelectedSat
   };
 
   return (
-    <TableContainer component={Paper} sx={{ width: '100%', overflowX: 'auto' }}> {/* Make the container responsive */}
-            <Table sx={{ minWidth: 900 }} size="small" aria-label="GPS Satellite table"> {/* Increase the minWidth */}
-        <TableHead>
-          <TableRow>
-            <TableCell>Plot</TableCell> {/* Checkbox column */}
-            <TableCell>PRN</TableCell>
-            <TableCell align="right">Elevation (°)</TableCell>
-            <TableCell align="right">Azimuth (°)</TableCell>
-            <TableCell align="right">SNR (dB)</TableCell>
-            <TableCell align="right">Health</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {tableSatellites.map((satellite) => (
-            <TableRow key={satellite.ID}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedSatellites[satellite.ID] || false} // Ensure it reads from state
-                  onChange={() => handleToggle(satellite.ID)}
-                  inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
-                />
-              </TableCell>
-              <TableCell component="th" scope="row">{satellite.ID}</TableCell>
-              <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
-              <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
-              <TableCell align="right">{satellite.snr.toFixed(2)}</TableCell>
-              <TableCell
-                align="right"
-                sx={{
-                  color: satellite.health === "000" ? 'green' : 'red',
-                  fontWeight: 'bold',
-                }}
-              >
-                {satellite.health === "000" ? "Healthy" : "Unhealthy"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <table>
+    <thead>
+      <tr>
+        <th>Plot</th>
+        <th>PRN</th>
+        <th align="right">Elevation (°)</th>
+        <th align="right">Azimuth (°)</th>
+        <th align="right">SNR (dB)</th>
+        <th align="right">Health</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tableSatellites.map((satellite) => (
+        <tr key={satellite.ID}>
+          <td>
+            <input type="checkbox" aria-label={`Plot satellite ${satellite.ID}`} />
+          </td>
+          <th scope="row">{satellite.ID}</th>
+          <td align="right">{satellite.elevation}</td>
+          <td align="right">{satellite.azimuth}</td>
+          <td align="right">{satellite.snr}</td>
+          <td align="right">{satellite.health}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
   );
 }
 

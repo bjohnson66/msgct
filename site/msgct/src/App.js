@@ -101,7 +101,6 @@ function App() {
     const UTC_GPST_OFFSET = 18;
     const GPS_SEC_IN_WEEK = 604800;
     const UNIX_GPS_EPOCH_DIFF = 315964800; // Difference between Unix and GPS epoch
-    const MAGIC_NUMBER_OFFSET_AKA_14_HOURS = 14 * 3600;
 
         let currentTime = (Date.now() / 1000) - UTC_GPST_OFFSET - UNIX_GPS_EPOCH_DIFF;
     
@@ -114,7 +113,6 @@ function App() {
         // In a sense, currentTime is now in GPS ToW but we don't need to worry about making sure it is bounded,
         // Adjust the current time to the GPS Time of Week by subtracting the number of seconds since the start of the GPS week
         currentTime -= (gpsWeekNumber * GPS_SEC_IN_WEEK);
-        currentTime -= MAGIC_NUMBER_OFFSET_AKA_14_HOURS; //I dont like this why are we 14 hours ahead?
 
         // ToW may roll over, so ensure it's bounded within a single week (0 to 604800 seconds)
         currentTime = currentTime % GPS_SEC_IN_WEEK;
