@@ -1,35 +1,50 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Checkbox } from '@mui/material';
 
-function GPSSatelliteTable({ tableSatellites }) {
+function GPSSatelliteTable({ tableSatellites, selectedSatellites, setSelectedSatellites }) {
+  const handleToggle = (satID) => {
+    setSelectedSatellites((prevSelected) => ({
+      ...prevSelected,
+      [satID]: !prevSelected[satID], // Toggle the selected state for this satellite
+    }));
+  };
+
   return (
-    <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 700 }} size="small" aria-label="GPS Satellite table">
+    <TableContainer component={Paper} sx={{ width: '100%', overflowX: 'auto' }}> {/* Make the container responsive */}
+            <Table sx={{ minWidth: 900 }} size="small" aria-label="GPS Satellite table"> {/* Increase the minWidth */}
         <TableHead>
           <TableRow>
+            <TableCell>Plot</TableCell> {/* Checkbox column */}
             <TableCell>PRN</TableCell>
             <TableCell align="right">Elevation (°)</TableCell>
             <TableCell align="right">Azimuth (°)</TableCell>
             <TableCell align="right">SNR (dB)</TableCell>
-            <TableCell align="right">Health</TableCell> {/* New column for health */}
+            <TableCell align="right">Health</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {tableSatellites.map((satellite) => (
             <TableRow key={satellite.ID}>
+              <TableCell>
+                <Checkbox
+                  checked={selectedSatellites[satellite.ID] || false} // Ensure it reads from state
+                  onChange={() => handleToggle(satellite.ID)}
+                  inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
+                />
+              </TableCell>
               <TableCell component="th" scope="row">{satellite.ID}</TableCell>
               <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
               <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
               <TableCell align="right">{satellite.snr.toFixed(2)}</TableCell>
               <TableCell
-               align="right"
-               sx={{
-                 color: satellite.health === "000" ? 'green' : 'red',
-                 fontWeight: 'bold',
-               }}
+                align="right"
+                sx={{
+                  color: satellite.health === "000" ? 'green' : 'red',
+                  fontWeight: 'bold',
+                }}
               >
-               {satellite.health === "000" ? "Healthy" : "Unhealthy"}
-             </TableCell> {/* Colored Health status */}
+                {satellite.health === "000" ? "Healthy" : "Unhealthy"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

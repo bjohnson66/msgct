@@ -82,6 +82,7 @@ function App() {
   const [useCurrentTime, setUseCurrentTime] = useState(true);
   const [manualGPST, setManualGPST] = useState(Math.floor((Date.now() / 1000) - 18 - 315964800));
   const [gpsWeekNumber, setGpsWeekNumber] = useState(0);
+  const [selectedSatellites, setSelectedSatellites] = useState({});
   const MASK_ANGLE = 5; //degrees above horizon
 
   const intervalRef = useRef(null);
@@ -220,12 +221,20 @@ function App() {
     try {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3500);
-
+  
       const data = await fetchAlmanacData();
       setGpsWeekNumber(data.week);
       setGpsAlmanacDataGlobal(data.satellites);
+  
+      // Reset the selectedSatellites state to unchecked for all new satellites
+      const initialSelectedSatellites = {};
+      data.satellites.forEach(sat => {
+        initialSelectedSatellites[sat.ID] = true; // Default unchecked for all satellites
+      });
+      setSelectedSatellites(initialSelectedSatellites);
+  
       updateSatellitePositions();
-
+  
     } catch (error) {
       console.error('Failed to update satellite data:', error);
     }
@@ -304,24 +313,32 @@ function App() {
               </Box>
             )}
           </Box>
-          <Grid item xs={12} md={6}>
-            <Typography variant="h6" gutterBottom>
-              Live Sky Plot
-            </Typography>
-            {SkyPlot && (
-              <SkyPlot satellites={tableSatellites} satelliteHistories={satelliteHistories} darkMode={darkMode} />
-            )}
-          </Grid>
         </Grid>
       </Container>
 
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
+            <Typography variant="h6" gutterBottom>
+              Live Sky Plot
+            </Typography>
+            {SkyPlot && (
+              <SkyPlot 
+                satellites={tableSatellites.filter(sat => selectedSatellites[sat.ID])} 
+                satelliteHistories={satelliteHistories} 
+                darkMode={darkMode} 
+              />
+            )}
+          </Grid>
+          <Grid item xs={12} md={8}>
             <Typography variant="h6" gutterBottom>
               GPS Satellite Data
             </Typography>
-            <GPSSatelliteTable tableSatellites={tableSatellites} />
+            <GPSSatelliteTable 
+              tableSatellites={tableSatellites} 
+              selectedSatellites={selectedSatellites} 
+              setSelectedSatellites={setSelectedSatellites} 
+            />
           </Grid>
         </Grid>
 
