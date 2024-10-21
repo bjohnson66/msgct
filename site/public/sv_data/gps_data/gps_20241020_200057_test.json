@@ -17,7 +17,7 @@
         },
         {
             "ID": "03",
-            "Health": "000",
+            "Health": "001",
             "Eccentricity": 0.005690097809,
             "TimeOfApplicability": 233472.0,
             "OrbitalInclination": 0.9867834756,
@@ -31,7 +31,7 @@
         },
         {
             "ID": "04",
-            "Health": "000",
+            "Health": "001",
             "Eccentricity": 0.003090381622,
             "TimeOfApplicability": 233472.0,
             "OrbitalInclination": 0.9656193344,
@@ -45,7 +45,7 @@
         },
         {
             "ID": "05",
-            "Health": "000",
+            "Health": "001",
             "Eccentricity": 0.005773067474,
             "TimeOfApplicability": 233472.0,
             "OrbitalInclination": 0.9737026941,
@@ -171,7 +171,7 @@
         },
         {
             "ID": "14",
-            "Health": "000",
+            "Health": "001",
             "Eccentricity": 0.004959583282,
             "TimeOfApplicability": 233472.0,
             "OrbitalInclination": 0.945138294,
@@ -381,7 +381,7 @@
         },
         {
             "ID": "29",
-            "Health": "000",
+            "Health": "001",
             "Eccentricity": 0.002895355225,
             "TimeOfApplicability": 233472.0,
             "OrbitalInclination": 0.9688970199,

@@ -11,6 +11,7 @@ function GPSSatelliteTable({ tableSatellites }) {
             <TableCell align="right">Elevation (°)</TableCell>
             <TableCell align="right">Azimuth (°)</TableCell>
             <TableCell align="right">SNR (dB)</TableCell>
+            <TableCell align="right">Health</TableCell> {/* New column for health */}
           </TableRow>
         </TableHead>
         <TableBody>
@@ -20,6 +21,15 @@ function GPSSatelliteTable({ tableSatellites }) {
               <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
               <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
               <TableCell align="right">{satellite.snr.toFixed(2)}</TableCell>
+              <TableCell
+               align="right"
+               sx={{
+                 color: satellite.health === "000" ? 'green' : 'red',
+                 fontWeight: 'bold',
+               }}
+              >
+               {satellite.health === "000" ? "Healthy" : "Unhealthy"}
+             </TableCell> {/* Colored Health status */}
             </TableRow>
           ))}
         </TableBody>
