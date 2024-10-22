@@ -32,6 +32,11 @@ urls = {
         "url": "https://sys.qzss.go.jp/dod/api/get/ephemeris",
         "interval_hours": 1,
         "save_directory": Path("site") / "public" / "sv_data" / "qzss_ephemeris_data"
+    },
+    "beidou": {
+        "url": "https://celestrak.com/NORAD/elements/beidou.txt",
+        "interval_hours": 1,
+        "save_directory": Path("site") / "public" / "sv_data" / "beidou_data"
     }
 }
 
@@ -154,7 +159,7 @@ def fetch_and_save(name, url, save_directory):
         os.makedirs(save_directory, exist_ok=True)
 
         # Parse the content into JSON-like structure based on data source
-        if name in [ "galileo", "glonass"]:
+        if name in [ "galileo", "glonass", "beidou" ]:
             parsed_data = parse_tle(content)
         elif name in ["gps", "qzss_almanac"]:
             parsed_data = parse_almanac(content)
