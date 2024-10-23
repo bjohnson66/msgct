@@ -170,16 +170,8 @@ def fetch_and_parse_block_type(url):
 
         # Extract the relevant fields based on the order of the columns
         row_data = {
-            "plane": columns[0].get_text(strip=True),
-            "slot": columns[1].get_text(strip=True),
-            "svn": columns[2].get_text(strip=True),
             "prn": columns[3].get_text(strip=True),
-            "block_type": columns[4].get_text(strip=True),
-            "clock": columns[5].get_text(strip=True),
-            "outage_start": columns[6].get_text(strip=True),
-            "nanu_type": columns[7].get_text(strip=True),
-            "nanu_subject": columns[8].get_text(strip=True),
-            "nanu_active_check": columns[9].get_text(strip=True),
+            "block_type": columns[4].get_text(strip=True)
         }
 
         # Append the row data to the list
