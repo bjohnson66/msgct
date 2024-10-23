@@ -149,33 +149,45 @@ def parse_almanac(content):
 
 # Function to fetch the data from block-type page and parse the data
 def fetch_and_parse_block_type(url):
+    headers = {
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache"
+    }
     response = requests.get(url)
     soup = BeautifulSoup(response.content, "html.parser")
 
     # Find the table and ensure it's found
-    table = soup.find("table")
-    if table is None:
-        print("Table not found on page.")
-        return []
-
+    table = soup.find("table", {"class": "table table-striped views-table views-view-table cols-10"})
+    #print(table.prettify())
     # Parse the table rows and columns
     data = []
-    for row in table.find_all("tr")[1:]:  # Skipping the header row
+    # Iterate over the rows in the tbody (skipping the header in thead)
+    rows = table.find("tbody").find_all("tr")
+    
+    for row in rows:
+        # Get all the columns in the current row
         columns = row.find_all("td")
-        satellite_id = columns[0].get_text(strip=True)
-        
-        #Filter by satellite_id between 2 and 32
-        if satellite_id.isdigit() and 2 <= int(satellite_id) <= 32:
-            row_data = {
-                "satellite_id": int(satellite_id),
-                "block": columns[1].get_text(strip=True),
-                "launch_date": columns[2].get_text(strip=True),
-                "out_of_service": columns[3].get_text(strip=True),
-                "status": columns[4].get_text(strip=True),
-            }
-            data.append(row_data)
-    #Sort data by satellite_id
-    sorted_data = sorted(data, key=lambda x: x["satellite_id"])
+
+        # Extract the relevant fields based on the order of the columns
+        row_data = {
+            "plane": columns[0].get_text(strip=True),
+            "slot": columns[1].get_text(strip=True),
+            "svn": columns[2].get_text(strip=True),
+            "prn": columns[3].get_text(strip=True),
+            "block_type": columns[4].get_text(strip=True),
+            "clock": columns[5].get_text(strip=True),
+            "outage_start": columns[6].get_text(strip=True),
+            "nanu_type": columns[7].get_text(strip=True),
+            "nanu_subject": columns[8].get_text(strip=True),
+            "nanu_active_check": columns[9].get_text(strip=True),
+        }
+
+        # Append the row data to the list
+        data.append(row_data)
+
+    sorted_data = sorted(data, key=lambda x: int(x["prn"]))
+    #print(sorted_data)
+
     return sorted_data
 
 
@@ -204,7 +216,6 @@ def fetch_and_save(name, url, save_directory):
             parsed_data = parse_almanac(content)
         elif name in ["gps_block_type"]:
             parsed_data = fetch_and_parse_block_type(url)
-            print(parsed_data)
         else:
             parsed_data = {
                 "name": name,
@@ -263,3 +274,6 @@ test_scraping()
 
 # Uncomment the line below to start the scheduled tasks
 # schedule_tasks()
+
+url = "https://www.navcen.uscg.gov/gps-constellation"  # Replace with the correct URL
+#parsed_data = fetch_and_parse_block_type(url)
