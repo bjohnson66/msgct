@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
+from bs4 import BeautifulSoup
 
 urls = {
     "galileo": {
@@ -37,7 +38,13 @@ urls = {
         "url": "https://celestrak.com/NORAD/elements/beidou.txt",
         "interval_hours": 1,
         "save_directory": Path("site") / "public" / "sv_data" / "beidou_data"
+    },
+    "gps_block_type": {
+        "url": "https://www.navcen.uscg.gov/gps-constellation",
+        "interval_hours": 1,
+        "save_directory": Path("site") / "public" / "sv_data" / "gps_block_type_data"
     }
+    
 }
 
 def find_current_satellite_week_number():
@@ -140,6 +147,38 @@ def parse_almanac(content):
 
     return {"week": week, "satellites": satellites}
 
+# Function to fetch the data from block-type page and parse the data
+def fetch_and_parse_block_type(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    # Find the table and ensure it's found
+    table = soup.find("table")
+    if table is None:
+        print("Table not found on page.")
+        return []
+
+    # Parse the table rows and columns
+    data = []
+    for row in table.find_all("tr")[1:]:  # Skipping the header row
+        columns = row.find_all("td")
+        satellite_id = columns[0].get_text(strip=True)
+        
+        #Filter by satellite_id between 2 and 32
+        if satellite_id.isdigit() and 2 <= int(satellite_id) <= 32:
+            row_data = {
+                "satellite_id": int(satellite_id),
+                "block": columns[1].get_text(strip=True),
+                "launch_date": columns[2].get_text(strip=True),
+                "out_of_service": columns[3].get_text(strip=True),
+                "status": columns[4].get_text(strip=True),
+            }
+            data.append(row_data)
+    #Sort data by satellite_id
+    sorted_data = sorted(data, key=lambda x: x["satellite_id"])
+    return sorted_data
+
+
 # Function to fetch data and save to files in JSON format
 def fetch_and_save(name, url, save_directory):
     try:
@@ -163,6 +202,9 @@ def fetch_and_save(name, url, save_directory):
             parsed_data = parse_tle(content)
         elif name in ["gps", "qzss_almanac"]:
             parsed_data = parse_almanac(content)
+        elif name in ["gps_block_type"]:
+            parsed_data = fetch_and_parse_block_type(url)
+            print(parsed_data)
         else:
             parsed_data = {
                 "name": name,
@@ -174,8 +216,11 @@ def fetch_and_save(name, url, save_directory):
         # Save the parsed JSON to the designated directory
         file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         file_path = os.path.join(save_directory, file_name)
-        with open(file_path, "w") as file:
-            json.dump(parsed_data, file, indent=4)
+        try:
+            with open(file_path, "w") as file:
+                json.dump(parsed_data, file, indent=4)
+        except Exception as e:
+            print(f"Error writing JSON file: {e}")
 
         print(f"Saved {name} data to {file_path}")
 
