@@ -91,12 +91,12 @@ function App() {
     setPositionSource(event.target.value);
   };
 
-  //ALEX #TODO
-  // const handlePositionUpdate = (position) => {
-  //   if (positionSource === 'receiver') {
-  //     setUserPositionState(position);
-  //   }
-  // };
+  
+   const handlePositionUpdate = (position) => {
+     if (positionSource === 'receiver') {
+       setUserPositionState(position);
+     }
+   };
 
   const getCurrentTime = useCallback(() => {
     const UTC_GPST_OFFSET = 18;
@@ -361,7 +361,7 @@ function App() {
         </Grid>
 
         <Grid item xs={12}>
-         <SerialPortComponent onPositionUpdate={(position) => setUserPositionState(position)} />
+         <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
 
         </Grid>
       </Stack>
