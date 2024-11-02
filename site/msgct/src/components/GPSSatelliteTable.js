@@ -11,7 +11,7 @@ function GPSSatelliteTable({ tableSatellites, selectedSatellites, setSelectedSat
 
   return (
     <TableContainer component={Paper} sx={{ width: '100%', overflowX: 'auto' }}>
-      <Table sx={{ minWidth: 900 }} size="small" aria-label="GPS Satellite table">
+      <Table sx={{ tableLayout: "auto" }} size="small" aria-label="GPS Satellite table">
         <TableHead>
           <TableRow>
             <TableCell>Plot</TableCell>

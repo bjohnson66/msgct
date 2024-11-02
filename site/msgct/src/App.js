@@ -52,7 +52,7 @@ export const setGpsAlmanacDataGlobal = (data) => {
 };
 export const getGpsAlmanacDataGlobal = () => gpsAlmanacDataGlobal;
 
-let userPosition = { lat: 45.0, lon: -93.0, alt: 0.0 };
+let userPosition = { lat: 41.90244, lon: -91.067420, alt: 0.0 };
 export const setUserPosition = (lat, lon, alt) => {
   userPosition = { lat, lon, alt };
 };
@@ -314,10 +314,9 @@ function App() {
           </Box>
         </Grid>
       </Container>
-
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={4}>
-        <Grid item xs={12} md={4}>
+        <Grid container spacing={1}>
+          <Grid item xs={11} md={3.5}>
             <Typography variant="h6" gutterBottom>
               Live Sky Plot
             </Typography>
@@ -329,7 +328,7 @@ function App() {
               />
             )}
           </Grid>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={11} md={8}>
             <Typography variant="h6" gutterBottom>
               GPS Satellite Data
             </Typography>
@@ -340,7 +339,6 @@ function App() {
             />
           </Grid>
         </Grid>
-
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
             User Position Source
@@ -352,14 +350,12 @@ function App() {
             setManualPosition={setManualPosition}
           />
         </Grid>
-
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
             Select SVs of Interest
           </Typography>
           <SelectSVsOfInterest />
         </Grid>
-
         <Grid item xs={12}>
          <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
 
