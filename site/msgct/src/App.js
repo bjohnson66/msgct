@@ -12,7 +12,7 @@
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {ThemeProvider, createTheme, CssBaseline, InputLabel, Switch, Container, Typography, Box, Stack, Grid, Checkbox, FormControl, Select, MenuItem, IconButton, TextField,} from '@mui/material';
+import {ThemeProvider,createTheme,CssBaseline,InputLabel,Switch,Container,Typography,Box,Stack,Grid,Checkbox,FormControl,Select,MenuItem,IconButton,TextField,} from '@mui/material';
 import { Helmet } from 'react-helmet';
 //import Confetti from 'react-confetti';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
@@ -21,7 +21,7 @@ import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
 import { fetchAlmanacByFilename } from './utils/fetchData';
-import {calculateSatellitePosition, calculateElevationAzimuth,} from './utils/gpsCalculations';
+import {calculateSatellitePosition,calculateElevationAzimuth,} from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
 
@@ -53,11 +53,12 @@ export const setGpsAlmanacDataGlobal = (data) => {
 };
 export const getGpsAlmanacDataGlobal = () => gpsAlmanacDataGlobal;
 
-let userPosition = { lat: 41.90244, lon: -91.067420, alt: 0.0 };
-export const setUserPosition = (lat, lon, alt) => {
-  userPosition = { lat, lon, alt };
-};
-export const getUserPosition = () => userPosition;
+// Removed userPosition global variable and its associated functions
+// let userPosition = { lat: 41.90244, lon: -91.067420, alt: 0.0 };
+// export const setUserPosition = (lat, lon, alt) => {
+//   userPosition = { lat, lon, alt };
+// };
+// export const getUserPosition = () => userPosition;
 
 export let computedSatellitesGlobal = [];
 export const setComputedSatellitesGlobal = (data) => {
@@ -159,13 +160,14 @@ function App() {
     }
   }, [positionSource, manualPosition]);
 
-  useEffect(() => {
-    setUserPosition(
-      userPositionState.lat,
-      userPositionState.lon,
-      userPositionState.alt
-    );
-  }, [userPositionState]);
+  // Removed useEffect that updates global userPosition
+  // useEffect(() => {
+  //   setUserPosition(
+  //     userPositionState.lat,
+  //     userPositionState.lon,
+  //     userPositionState.alt
+  //   );
+  // }, [userPositionState]);
 
   const calculateHistories = useCallback(() => {
     if (gpsAlmanacDataGlobal.length > 0) {
@@ -182,7 +184,7 @@ function App() {
           const ecefPosition = calculateSatellitePosition(satellite, t);
           const { elevation, azimuth } = calculateElevationAzimuth(
             ecefPosition,
-            getUserPosition()
+            userPositionState // Use userPositionState directly
           );
           return { ID: satellite.ID, elevation, azimuth, timestamp: t };
         });
@@ -209,7 +211,7 @@ function App() {
 
       setSatelliteHistories(histories);
     }
-  }, [getCurrentTime]);
+  }, [getCurrentTime, userPositionState]);
 
   const updateSatellitePositions = useCallback(() => {
     if (gpsAlmanacDataGlobal.length > 0) {
@@ -223,7 +225,7 @@ function App() {
           );
           const { elevation, azimuth, snr } = calculateElevationAzimuth(
             ecefPosition,
-            getUserPosition()
+            userPositionState // Use userPositionState directly
           );
           const health = satellite.Health;
           console.log(satellite.Health);
@@ -235,7 +237,7 @@ function App() {
       setTableSatellites(computedSatellites);
       calculateHistories();
     }
-  }, [getCurrentTime, calculateHistories]);
+  }, [getCurrentTime, calculateHistories, userPositionState]);
 
   useEffect(() => {
     if (intervalRef.current) {
