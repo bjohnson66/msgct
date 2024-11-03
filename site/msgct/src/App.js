@@ -6,13 +6,13 @@
   This project utilized OpenAI's ChatGPT (GPT-4o) to assist in the development and optimization of various components, including:
 
   - Generating and refining React components for the application structure.
-  - Creating stubs and doing basic JSON convsersion during early development.
-  - Assisting in reasearch for phyiscs formulas and calculations need to solve the problem of GPS (calculating and converting SV position)
+  - Creating stubs and doing basic JSON conversion during early development.
+  - Assisting in research for physics formulas and calculations needed to solve the problem of GPS (calculating and converting SV position)
 
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { ThemeProvider, createTheme, CssBaseline,InputLabel, Switch, Container, Typography, Box, Stack, Grid, Checkbox, FormControl, Select, MenuItem, IconButton, TextField} from '@mui/material';
+import {ThemeProvider, createTheme, CssBaseline, InputLabel, Switch, Container, Typography, Box, Stack, Grid, Checkbox, FormControl, Select, MenuItem, IconButton, TextField,} from '@mui/material';
 import { Helmet } from 'react-helmet';
 //import Confetti from 'react-confetti';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
@@ -21,7 +21,7 @@ import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
 import { fetchAlmanacByFilename } from './utils/fetchData';
-import { calculateSatellitePosition, calculateElevationAzimuth } from './utils/gpsCalculations';
+import {calculateSatellitePosition, calculateElevationAzimuth,} from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
 
@@ -34,13 +34,14 @@ if (process.env.NODE_ENV !== 'test') {
 //set meta data
 const meta = {
   title: 'Multi-Source GNSS Constellation Tracker',
-  description: "Monitor the status of GNSS Constellations in real time or in the past.",
+  description:
+    'Monitor the status of GNSS Constellations in real time or in the past.',
   meta: {
     charset: 'utf-8',
     name: {
-      keywords: 'react,meta,document,html,tags'
-    }
-  }
+      keywords: 'react,meta,document,html,tags',
+    },
+  },
 };
 
 //-------------------------------------
@@ -66,8 +67,6 @@ export const getComputedSatellitesGlobal = () => computedSatellitesGlobal;
 
 const initialTableSatellites = [];
 
-
-
 //--------------------------------------
 //  Main App Component
 //--------------------------------------
@@ -79,10 +78,20 @@ function App() {
   const [selectedAlmanac, setSelectedAlmanac] = useState('');
   //const [showConfetti, setShowConfetti] = useState(false);
   const [positionSource, setPositionSource] = useState('manual');
-  const [manualPosition, setManualPosition] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
-  const [userPositionState, setUserPositionState] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
+  const [manualPosition, setManualPosition] = useState({
+    lat: 45.0,
+    lon: -93.0,
+    alt: 0.0,
+  });
+  const [userPositionState, setUserPositionState] = useState({
+    lat: 45.0,
+    lon: -93.0,
+    alt: 0.0,
+  });
   const [useCurrentTime, setUseCurrentTime] = useState(true);
-  const [manualGPST, setManualGPST] = useState(Math.floor((Date.now() / 1000) - 18 - 315964800));
+  const [manualGPST, setManualGPST] = useState(
+    Math.floor(Date.now() / 1000 - 18 - 315964800)
+  );
   const [gpsWeekNumber, setGpsWeekNumber] = useState(0);
   const [selectedSatellites, setSelectedSatellites] = useState({});
   const MASK_ANGLE = 5; //degrees above horizon
@@ -93,35 +102,35 @@ function App() {
     setPositionSource(event.target.value);
   };
 
-  
-   const handlePositionUpdate = (position) => {
-     if (positionSource === 'receiver') {
-       setUserPositionState(position);
-     }
-   };
+  const handlePositionUpdate = (position) => {
+    if (positionSource === 'receiver') {
+      console.log('Updating user position from receiver:', position);
+      setUserPositionState(position);
+    }
+  };
 
   const getCurrentTime = useCallback(() => {
     const UTC_GPST_OFFSET = 18;
     const GPS_SEC_IN_WEEK = 604800;
     const UNIX_GPS_EPOCH_DIFF = 315964800; // Difference between Unix and GPS epoch
 
-        let currentTime = (Date.now() / 1000) - UTC_GPST_OFFSET - UNIX_GPS_EPOCH_DIFF;
-    
-        if (!useCurrentTime) {
-          currentTime = manualGPST;
-        }
-  
-        //We need to make sure that time is properly accounting for GPST week and GPST ToW
-        //This line means that current time is the number of seconds since the GPS week that the almanac is from
-        // In a sense, currentTime is now in GPS ToW but we don't need to worry about making sure it is bounded,
-        // Adjust the current time to the GPS Time of Week by subtracting the number of seconds since the start of the GPS week
-        currentTime -= (gpsWeekNumber * GPS_SEC_IN_WEEK);
+    let currentTime = Date.now() / 1000 - UTC_GPST_OFFSET - UNIX_GPS_EPOCH_DIFF;
 
-        // ToW may roll over, so ensure it's bounded within a single week (0 to 604800 seconds)
-        currentTime = currentTime % GPS_SEC_IN_WEEK;
+    if (!useCurrentTime) {
+      currentTime = manualGPST;
+    }
 
-        console.log("Current Time of Week:", currentTime);
-        return currentTime;
+    //We need to make sure that time is properly accounting for GPST week and GPST ToW
+    //This line means that currentTime is the number of seconds since the GPS week that the almanac is from
+    // In a sense, currentTime is now in GPS ToW but we don't need to worry about making sure it is bounded,
+    // Adjust the current time to the GPS Time of Week by subtracting the number of seconds since the start of the GPS week
+    currentTime -= gpsWeekNumber * GPS_SEC_IN_WEEK;
+
+    // ToW may roll over, so ensure it's bounded within a single week (0 to 604800 seconds)
+    currentTime = currentTime % GPS_SEC_IN_WEEK;
+
+    console.log('Current Time of Week:', currentTime);
+    return currentTime;
   }, [useCurrentTime, manualGPST, gpsWeekNumber]);
 
   useEffect(() => {
@@ -130,7 +139,11 @@ function App() {
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude, altitude } = position.coords;
-            setUserPositionState({ lat: latitude, lon: longitude, alt: altitude || 0 });
+            setUserPositionState({
+              lat: latitude,
+              lon: longitude,
+              alt: altitude || 0,
+            });
           },
           (error) => {
             console.error('Error getting device position:', error);
@@ -141,11 +154,17 @@ function App() {
       }
     } else if (positionSource === 'manual') {
       setUserPositionState(manualPosition);
+    } else if (positionSource === 'receiver') {
+      // No action needed here; position updates come from handlePositionUpdate
     }
   }, [positionSource, manualPosition]);
 
   useEffect(() => {
-    setUserPosition(userPositionState.lat, userPositionState.lon, userPositionState.alt);
+    setUserPosition(
+      userPositionState.lat,
+      userPositionState.lon,
+      userPositionState.alt
+    );
   }, [userPositionState]);
 
   const calculateHistories = useCallback(() => {
@@ -155,62 +174,80 @@ function App() {
       const numberOfSteps = Math.floor(timeWindow / timeStep);
       const histories = {};
       let currentTime = getCurrentTime();
-  
+
       for (let i = numberOfSteps; i >= 0; i--) {
         const t = currentTime - i * timeStep;
-  
+
         const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
           const ecefPosition = calculateSatellitePosition(satellite, t);
-          const { elevation, azimuth } = calculateElevationAzimuth(ecefPosition, getUserPosition());
+          const { elevation, azimuth } = calculateElevationAzimuth(
+            ecefPosition,
+            getUserPosition()
+          );
           return { ID: satellite.ID, elevation, azimuth, timestamp: t };
         });
-  
+
         computedSatellites.forEach((sat) => {
           if (!histories[sat.ID]) {
             histories[sat.ID] = [];
           }
-          if (sat.elevation <= 0){
-            histories[sat.ID].push({ elevation: 0, azimuth: sat.azimuth, timestamp: sat.timestamp });
-          } else{
-            histories[sat.ID].push({ elevation: sat.elevation, azimuth: sat.azimuth, timestamp: sat.timestamp });
+          if (sat.elevation <= 0) {
+            histories[sat.ID].push({
+              elevation: 0,
+              azimuth: sat.azimuth,
+              timestamp: sat.timestamp,
+            });
+          } else {
+            histories[sat.ID].push({
+              elevation: sat.elevation,
+              azimuth: sat.azimuth,
+              timestamp: sat.timestamp,
+            });
           }
         });
       }
-  
+
       setSatelliteHistories(histories);
     }
   }, [getCurrentTime]);
-  
+
   const updateSatellitePositions = useCallback(() => {
     if (gpsAlmanacDataGlobal.length > 0) {
       let currentTime = getCurrentTime();
-  
-      const computedSatellites = gpsAlmanacDataGlobal.map((satellite) => {
-        const ecefPosition = calculateSatellitePosition(satellite, currentTime);
-        const { elevation, azimuth, snr } = calculateElevationAzimuth(ecefPosition, getUserPosition());
-        const health = satellite.Health;
-        console.log(satellite.Health);
-        return { ID: satellite.ID, elevation, azimuth, snr, health};
-      }).filter((sat) => sat.elevation > MASK_ANGLE);
-  
+
+      const computedSatellites = gpsAlmanacDataGlobal
+        .map((satellite) => {
+          const ecefPosition = calculateSatellitePosition(
+            satellite,
+            currentTime
+          );
+          const { elevation, azimuth, snr } = calculateElevationAzimuth(
+            ecefPosition,
+            getUserPosition()
+          );
+          const health = satellite.Health;
+          console.log(satellite.Health);
+          return { ID: satellite.ID, elevation, azimuth, snr, health };
+        })
+        .filter((sat) => sat.elevation > MASK_ANGLE);
+
       setComputedSatellitesGlobal(computedSatellites);
       setTableSatellites(computedSatellites);
       calculateHistories();
     }
   }, [getCurrentTime, calculateHistories]);
-  
-  
+
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-  
+
     updateSatellitePositions();
-  
+
     if (useCurrentTime) {
       intervalRef.current = setInterval(updateSatellitePositions, 250);
     }
-  
+
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -241,13 +278,10 @@ function App() {
     if (data) {
       setGpsWeekNumber(data.week);
       setGpsAlmanacDataGlobal(data.satellites);
-  
-  
-      // Reset the selectedSatellites state to unchecked for all new satellites
 
       // Reset the selectedSatellites state to unchecked for all new satellites
       const initialSelectedSatellites = {};
-      data.satellites.forEach(sat => {
+      data.satellites.forEach((sat) => {
         initialSelectedSatellites[sat.ID] = true;
       });
       setSelectedSatellites(initialSelectedSatellites);
@@ -260,20 +294,20 @@ function App() {
   //   try {
   //     setShowConfetti(true);
   //     setTimeout(() => setShowConfetti(false), 3500);
-  
+
   //     const data = await fetchAlmanacData();
   //     setGpsWeekNumber(data.week);
   //     setGpsAlmanacDataGlobal(data.satellites);
-  
+
   //     // Reset the selectedSatellites state to unchecked for all new satellites
   //     const initialSelectedSatellites = {};
   //     data.satellites.forEach(sat => {
   //       initialSelectedSatellites[sat.ID] = true; // Default unchecked for all satellites
   //     });
   //     setSelectedSatellites(initialSelectedSatellites);
-  
+
   //     updateSatellitePositions();
-  
+
   //   } catch (error) {
   //     console.error('Failed to update satellite data:', error);
   //   }
@@ -306,15 +340,25 @@ function App() {
       </Helmet>
 
       <Container style={{ marginTop: '50px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <img src={logo} className='Logo' alt='MSGCT Logo' />
+            <img src={logo} className="Logo" alt="MSGCT Logo" />
             <Typography variant="h4">
               Multi-Source GNSS Constellation Tracker
             </Typography>
           </Box>
           <Typography>Dark Mode:</Typography>
-          <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} id="darkModeSwitch" />
+          <Switch
+            checked={darkMode}
+            onChange={() => setDarkMode(!darkMode)}
+            id="darkModeSwitch"
+          />
         </Box>
         <FormControl fullWidth sx={{ mt: 4, mb: 2 }}>
           <InputLabel>Select Almanac</InputLabel>
@@ -352,7 +396,9 @@ function App() {
             <Typography>Use Current Time</Typography>
             {!useCurrentTime && (
               <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-                <IconButton onClick={() => setManualGPST(manualGPST - 15 * 60)}>
+                <IconButton
+                  onClick={() => setManualGPST(manualGPST - 15 * 60)}
+                >
                   <ArrowDownward />
                 </IconButton>
                 <TextField
@@ -361,7 +407,9 @@ function App() {
                   value={manualGPST}
                   onChange={(e) => setManualGPST(parseFloat(e.target.value))}
                 />
-                <IconButton onClick={() => setManualGPST(manualGPST + (15 * 60))}>
+                <IconButton
+                  onClick={() => setManualGPST(manualGPST + 15 * 60)}
+                >
                   <ArrowUpward />
                 </IconButton>
               </Box>
@@ -376,10 +424,12 @@ function App() {
               Live Sky Plot
             </Typography>
             {SkyPlot && (
-              <SkyPlot 
-                satellites={tableSatellites.filter(sat => selectedSatellites[sat.ID])} 
-                satelliteHistories={satelliteHistories} 
-                darkMode={darkMode} 
+              <SkyPlot
+                satellites={tableSatellites.filter(
+                  (sat) => selectedSatellites[sat.ID]
+                )}
+                satelliteHistories={satelliteHistories}
+                darkMode={darkMode}
               />
             )}
           </Grid>
@@ -387,10 +437,10 @@ function App() {
             <Typography variant="h6" gutterBottom>
               GPS Satellite Data
             </Typography>
-            <GPSSatelliteTable 
-              tableSatellites={tableSatellites} 
-              selectedSatellites={selectedSatellites} 
-              setSelectedSatellites={setSelectedSatellites} 
+            <GPSSatelliteTable
+              tableSatellites={tableSatellites}
+              selectedSatellites={selectedSatellites}
+              setSelectedSatellites={setSelectedSatellites}
             />
           </Grid>
         </Grid>
@@ -403,6 +453,7 @@ function App() {
             onPositionSourceChange={handlePositionSourceChange}
             manualPosition={manualPosition}
             setManualPosition={setManualPosition}
+            receiverPosition={userPositionState} // Added this line
           />
         </Grid>
         <Grid item xs={12}>
@@ -412,8 +463,7 @@ function App() {
           <SelectSVsOfInterest />
         </Grid>
         <Grid item xs={12}>
-         <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
-
+          <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
         </Grid>
       </Stack>
     </ThemeProvider>

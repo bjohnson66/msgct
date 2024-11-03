@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Container, Typography, Box, Button, TextField, Select, MenuItem } from '@mui/material';
+import {Container, Typography, Box, Button, TextField, Select, MenuItem,} from '@mui/material';
 import GPSSatelliteTable from './GPSSatelliteTable';
-import { parseGSV, parseGGA } from './NMEAParser';
+import { parseGSV, parseGGA } from './NMEAParser'; // Import parseGSV and parseGGA
 
 function SerialPortComponent({ onPositionUpdate }) {
-  const [ports, setPorts] = useState([]); // Available serial ports
-  const [selectedPort, setSelectedPort] = useState(null); // Selected COM port
+  const [ports, setPorts] = useState([]); // Array of { port, name }
+  const [selectedPortInfo, setSelectedPortInfo] = useState(null); // Selected port info object
   const [serialData, setSerialData] = useState(''); // Raw serial data to display
   const [isPortOpen, setIsPortOpen] = useState(false); // Track if port is open
   const [serialTableData, setSerialTableData] = useState([]); // Data for the table
@@ -15,16 +15,28 @@ function SerialPortComponent({ onPositionUpdate }) {
   const bufferRef = useRef(''); // Buffer to store incoming data
   const readableStreamClosedRef = useRef(null); // Reference to the readableStreamClosed promise
 
-  // Timer reference for updating the table every 2 seconds
-  const timerRef = useRef(null);
-
   // Request available ports on page load
   useEffect(() => {
     async function getPorts() {
       if ('serial' in navigator) {
         try {
           const availablePorts = await navigator.serial.getPorts();
-          setPorts(availablePorts);
+          const portsWithInfo = await Promise.all(
+            availablePorts.map(async (port) => {
+              const info = port.getInfo();
+              let name = 'Unknown Device';
+
+              // Attempt to use product and manufacturer strings
+              if (info.usbVendorId && info.usbProductId) {
+                const vendorId = info.usbVendorId.toString(16).padStart(4, '0');
+                const productId = info.usbProductId.toString(16).padStart(4, '0');
+                name = `USB Device (${vendorId}, ${productId})`;
+              }
+
+              return { port, name };
+            })
+          );
+          setPorts(portsWithInfo);
         } catch (error) {
           console.error('Error accessing serial ports:', error);
         }
@@ -35,13 +47,14 @@ function SerialPortComponent({ onPositionUpdate }) {
 
   // Function to handle selecting a port
   const handlePortSelection = async (event) => {
-    const selectedPort = event.target.value;
-    setSelectedPort(selectedPort);
+    const selectedPortInfo = event.target.value;
+    setSelectedPortInfo(selectedPortInfo);
   };
 
   // Function to start reading from the selected port
   const handleStartReading = async () => {
-    if (selectedPort) {
+    if (selectedPortInfo && selectedPortInfo.port) {
+      const selectedPort = selectedPortInfo.port;
       try {
         await selectedPort.open({ baudRate: 9600 }); // Open the port with the required baud rate
         setIsPortOpen(true);
@@ -53,7 +66,9 @@ function SerialPortComponent({ onPositionUpdate }) {
         });
 
         const textDecoder = new TextDecoderStream();
-        readableStreamClosedRef.current = selectedPort.readable.pipeTo(textDecoder.writable);
+        readableStreamClosedRef.current = selectedPort.readable.pipeTo(
+          textDecoder.writable
+        );
         readableStreamClosedRef.current.catch((error) => {
           console.error('Error with readableStreamClosed:', error);
         });
@@ -71,6 +86,14 @@ function SerialPortComponent({ onPositionUpdate }) {
               if (value) {
                 bufferRef.current += value;
                 setSerialData((prevData) => prevData + value); // Update the serialData text field
+
+                // Process the buffer to extract complete lines
+                let lines = bufferRef.current.split('\n');
+                bufferRef.current = lines.pop(); // Save incomplete line for next read
+
+                for (let line of lines) {
+                  processLine(line.trim());
+                }
               }
             }
           } catch (error) {
@@ -88,12 +111,61 @@ function SerialPortComponent({ onPositionUpdate }) {
 
         readLoop();
 
-        // Start the timer to update the table every 2 seconds
-        timerRef.current = setInterval(() => {
-          processSerialData();
-        }, 2000);
       } catch (error) {
         console.error('Error opening serial port:', error);
+      }
+    }
+  };
+
+  // Function to process each line as it arrives
+  const processLine = (line) => {
+    if (
+      line.startsWith('$GPGSV') ||
+      line.startsWith('$GLGSV') ||
+      line.startsWith('$GAGSV') ||
+      line.startsWith('$BDGSV') ||
+      line.startsWith('$GNGSV') // Added for combined GNSS sentences
+    ) {
+    
+      const satelliteInfo = parseGSV(line);
+      if (satelliteInfo && satelliteInfo.length > 0) {
+        // Update serialTableData
+        setSerialTableData((prevData) => {
+          const satellitesByID = {};
+          prevData.forEach((sat) => {
+            satellitesByID[sat.ID] = sat;
+          });
+          satelliteInfo.forEach((sat) => {
+            satellitesByID[sat.ID] = sat;
+          });
+          return Object.values(satellitesByID).sort(
+            (a, b) => parseInt(a.ID) - parseInt(b.ID)
+          );
+        });
+
+        // Update selectedSatellites state
+        setSelectedSatellites((prevSelected) => {
+          const newSelected = { ...prevSelected };
+          satelliteInfo.forEach((sat) => {
+            if (!(sat.ID in newSelected)) {
+              newSelected[sat.ID] = true; // Default to true (checked)
+            }
+          });
+          return newSelected;
+        });
+      }
+    } else if (
+      line.startsWith('$GPGGA') ||
+      line.startsWith('$GLGGA') ||
+      line.startsWith('$GAGGA') ||
+      line.startsWith('$BDGGA') ||
+      line.startsWith('$GNGGA') // Added for combined GNSS sentences
+    ) {
+      
+      const positionInfo = parseGGA(line);
+      if (positionInfo && onPositionUpdate) {
+        console.log('Position update:', positionInfo);
+        onPositionUpdate(positionInfo);
       }
     }
   };
@@ -103,8 +175,24 @@ function SerialPortComponent({ onPositionUpdate }) {
     if ('serial' in navigator) {
       try {
         const port = await navigator.serial.requestPort(); // User selects a port from the browser dialog
-        setPorts((prevPorts) => [...prevPorts, port]); // Add new port to the list
-        setSelectedPort(port);
+        const info = port.getInfo();
+        let defaultName = 'Unknown Device';
+
+        // Attempt to use product and manufacturer strings
+        if (info.usbVendorId && info.usbProductId) {
+          const vendorId = info.usbVendorId.toString(16).padStart(4, '0');
+          const productId = info.usbProductId.toString(16).padStart(4, '0');
+          defaultName = `USB Device (${vendorId}, ${productId})`;
+        }
+
+        // Prompt the user for a custom name
+        const customName =
+          window.prompt('Enter a name for the device:', defaultName) ||
+          defaultName;
+
+        const portWithInfo = { port, name: customName };
+        setPorts((prevPorts) => [...prevPorts, portWithInfo]); // Add new port to the list
+        setSelectedPortInfo(portWithInfo);
       } catch (error) {
         console.error('Error requesting serial port:', error);
       }
@@ -133,20 +221,16 @@ function SerialPortComponent({ onPositionUpdate }) {
       }
     }
 
-    if (selectedPort) {
+    if (selectedPortInfo && selectedPortInfo.port) {
       try {
-        await selectedPort.close();
+        await selectedPortInfo.port.close();
       } catch (error) {
         console.error('Error closing port:', error);
       }
-      selectedPort.removeEventListener('disconnect', handlePortDisconnect);
+      selectedPortInfo.port.removeEventListener('disconnect', handlePortDisconnect);
     }
 
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, [selectedPort]);
+  }, [selectedPortInfo]);
 
   // Function to disconnect from the serial port
   const handleDisconnect = async () => {
@@ -161,8 +245,8 @@ function SerialPortComponent({ onPositionUpdate }) {
   useEffect(() => {
     return () => {
       const cleanup = async () => {
-        if (selectedPort) {
-          selectedPort.removeEventListener('disconnect', handlePortDisconnect);
+        if (selectedPortInfo && selectedPortInfo.port) {
+          selectedPortInfo.port.removeEventListener('disconnect', handlePortDisconnect);
         }
         if (readerRef.current) {
           try {
@@ -181,87 +265,19 @@ function SerialPortComponent({ onPositionUpdate }) {
           }
         }
 
-        if (selectedPort && selectedPort.readable) {
+        if (selectedPortInfo && selectedPortInfo.port && selectedPortInfo.port.readable) {
           try {
-            await selectedPort.close();
+            await selectedPortInfo.port.close();
           } catch (error) {
             console.error('Error closing port during cleanup:', error);
           }
-        }
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
         }
       };
       cleanup().catch((error) => {
         console.error('Error during cleanup:', error);
       });
     };
-  }, [handlePortDisconnect, selectedPort]);
-
-  // Function to process serial data and update the table
-  const processSerialData = () => {
-    const data = bufferRef.current;
-    bufferRef.current = ''; // Clear the buffer after processing
-
-    // Split the data into lines
-    const lines = data.split('\n');
-
-    // Use an object to store satellites by ID to prevent duplicates
-    const satellitesByID = {};
-
-    lines.forEach((line) => {
-      line = line.trim();
-      if (
-        line.startsWith('$GPGSV') ||
-        line.startsWith('$GLGSV') ||
-        line.startsWith('$GAGSV') ||
-        line.startsWith('$BDGSV')
-      ) {
-        // Parse GSV sentences
-        const satelliteInfo = parseGSV(line);
-        if (satelliteInfo && satelliteInfo.length > 0) {
-          satelliteInfo.forEach((satellite) => {
-            satellitesByID[satellite.ID] = satellite; // Overwrite if ID already exists
-          });
-        }
-      } else if (
-        line.startsWith('$GPGGA') ||
-        line.startsWith('$GLGGA') ||
-        line.startsWith('$GAGGA') ||
-        line.startsWith('$BDGGA')
-      ) {
-        // Parse GGA sentences
-        const positionInfo = parseGGA(line);
-        if (positionInfo && onPositionUpdate) {
-          onPositionUpdate(positionInfo);
-        }
-      }
-    });
-
-    let parsedData = Object.values(satellitesByID);
-
-    parsedData.sort((a, b) => {
-      const idA = parseInt(a.ID, 10);
-      const idB = parseInt(b.ID, 10);
-      return idA - idB;
-    });
-
-    if (parsedData.length > 0) {
-      // Update selectedSatellites state
-      setSelectedSatellites((prevSelected) => {
-        const newSelected = { ...prevSelected };
-        parsedData.forEach((sat) => {
-          if (!(sat.ID in newSelected)) {
-            newSelected[sat.ID] = true; // Default to true (checked)
-          }
-        });
-        return newSelected;
-      });
-
-      setSerialTableData(parsedData); // Replace the state with deduplicated data
-    }
-  };
+  }, [handlePortDisconnect, selectedPortInfo]);
 
   return (
     <Container style={{ marginTop: '20px' }}>
@@ -269,7 +285,7 @@ function SerialPortComponent({ onPositionUpdate }) {
       <Box sx={{ mt: 2 }}>
         {/* Dropdown to select COM port */}
         <Select
-          value={selectedPort || ''}
+          value={selectedPortInfo || ''}
           onChange={handlePortSelection}
           displayEmpty
           fullWidth
@@ -278,15 +294,20 @@ function SerialPortComponent({ onPositionUpdate }) {
           <MenuItem value="">
             <em>Select a COM port</em>
           </MenuItem>
-          {ports.map((port, index) => (
-            <MenuItem key={index} value={port}>
-              Port {index + 1} {/* You can customize this to show actual port info */}
+          {ports.map((portInfo, index) => (
+            <MenuItem key={index} value={portInfo}>
+              {portInfo.name}
             </MenuItem>
           ))}
         </Select>
 
         {/* Button to request a new port */}
-        <Button variant="contained" color="secondary" onClick={handleRequestPort} sx={{ mt: 2 }}>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleRequestPort}
+          sx={{ mt: 2 }}
+        >
           Request a COM Port
         </Button>
 
@@ -296,7 +317,7 @@ function SerialPortComponent({ onPositionUpdate }) {
           color="primary"
           onClick={handleStartReading}
           sx={{ mt: 2 }}
-          disabled={isPortOpen || !selectedPort} // Disable button if port is already open or not selected
+          disabled={isPortOpen || !selectedPortInfo} // Disable button if port is already open or not selected
         >
           Start Reading
         </Button>
