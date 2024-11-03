@@ -107,6 +107,8 @@ function App() {
     if (positionSource === 'receiver') {
       console.log('Updating user position from receiver:', position);
       setUserPositionState(position);
+    } else {
+      console.log('Ignoring receiver position update since positionSource is:', positionSource);
     }
   };
 
@@ -465,7 +467,7 @@ function App() {
           <SelectSVsOfInterest />
         </Grid>
         <Grid item xs={12}>
-          <SerialPortComponent onPositionUpdate={handlePositionUpdate} />
+          <SerialPortComponent onPositionUpdate={handlePositionUpdate} positionSource={positionSource} />
         </Grid>
       </Stack>
     </ThemeProvider>

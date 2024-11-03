@@ -3,7 +3,7 @@ import {Container, Typography, Box, Button, TextField, Select, MenuItem,} from '
 import GPSSatelliteTable from './GPSSatelliteTable';
 import { parseGSV, parseGGA } from './NMEAParser'; // Import parseGSV and parseGGA
 
-function SerialPortComponent({ onPositionUpdate }) {
+function SerialPortComponent({ onPositionUpdate, positionSource }) {
   const [ports, setPorts] = useState([]); // Array of { port, name }
   const [selectedPortInfo, setSelectedPortInfo] = useState(null); // Selected port info object
   const [serialData, setSerialData] = useState(''); // Raw serial data to display
@@ -163,7 +163,7 @@ function SerialPortComponent({ onPositionUpdate }) {
     ) {
       
       const positionInfo = parseGGA(line);
-      if (positionInfo && onPositionUpdate) {
+      if (positionInfo && onPositionUpdate && positionSource === 'receiver') {
         console.log('Position update:', positionInfo);
         onPositionUpdate(positionInfo);
       }
