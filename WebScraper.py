@@ -12,7 +12,7 @@ urls = {
     "galileo": {
         "url": "https://celestrak.com/NORAD/elements/galileo.txt",
         "interval_hours": 1,
-        "save_directory": Path("site") / "public" / "sv_data" / "galilio_data"
+        "save_directory": Path("site") / "public" / "sv_data" / "galileo_data"
     },
     "gps": {
         "url": "https://navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm",
@@ -181,7 +181,28 @@ def fetch_and_parse_block_type(url):
     #print(sorted_data)
 
     return sorted_data
+def save_to_manifest(file_name, constellation_name):
+    # Define the path to the manifest file
+    manifest_path = Path("site") / "msgct" / "build" / "sv_data" / f"{constellation_name}_data" / "manifest.json"
+    
+    # Ensure the directory exists
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Load the existing manifest or initialize it as an empty list
+    if manifest_path.exists():
+        with open(manifest_path, "r") as file:
+            manifest = json.load(file)
+    else:
+        manifest = []
+
+    # Append the new file name to the manifest list
+    manifest.append(file_name)
+
+    # Write the updated manifest back to the file
+    with open(manifest_path, "w") as file:
+        json.dump(manifest, file, indent=4)
+
+    print(f"File '{file_name}' added to manifest for constellation '{constellation_name}'.")
 
 # Function to fetch data and save to files in JSON format
 def fetch_and_save(name, url, save_directory):
@@ -215,9 +236,16 @@ def fetch_and_save(name, url, save_directory):
                 "url": url,
                 "content": content
             }
-
-        # Save the parsed JSON to the designated directory
-        file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        current_datetime = datetime.now()
+        epoch_seconds = int(current_datetime.timestamp())
+        if "_" not in name:
+            # Generate a unique filename for each constellation
+            file_name = f"{name}_{epoch_seconds}.json"
+            # Call save_to_manifest with the correct parameters
+            save_to_manifest(file_name, name)
+        else:
+            # Save the parsed JSON to the designated directory
+            file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         file_path = os.path.join(save_directory, file_name)
         try:
             with open(file_path, "w") as file:
@@ -267,5 +295,7 @@ test_scraping()
 # Uncomment the line below to start the scheduled tasks
 # schedule_tasks()
 
-url = "https://www.navcen.uscg.gov/gps-constellation"  # Replace with the correct URL
+#url = "https://www.navcen.uscg.gov/gps-constellation"  # Replace with the correct URL
 #parsed_data = fetch_and_parse_block_type(url)
+
+#save_to_manifest("gps_1722222222", "gps")
