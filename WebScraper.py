@@ -24,10 +24,10 @@ urls = {
         "interval_hours": 1,
         "save_directory": Path("site") / "public" / "sv_data" / "glonass_data"
     },
-    "qzss_almanac": {
+    "qzss": {
         "url": "https://sys.qzss.go.jp/dod/api/get/almanac",
         "interval_hours": 1,
-        "save_directory": Path("site") / "public" / "sv_data" / "qzss_almanac_data"
+        "save_directory": Path("site") / "public" / "sv_data" / "qzss_data"
     },
     "qzss_ephemeris": {
         "url": "https://sys.qzss.go.jp/dod/api/get/ephemeris",
@@ -183,7 +183,7 @@ def fetch_and_parse_block_type(url):
     return sorted_data
 def save_to_manifest(file_name, constellation_name):
     # Define the path to the manifest file
-    manifest_path = Path("site") / "msgct" / "build" / "sv_data" / f"{constellation_name}_data" / "manifest.json"
+    manifest_path = Path("site") / "public" / "sv_data" / f"{constellation_name}_data" / "manifest.json"
     
     # Ensure the directory exists
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -225,7 +225,7 @@ def fetch_and_save(name, url, save_directory):
         # Parse the content into JSON-like structure based on data source
         if name in [ "galileo", "glonass", "beidou" ]:
             parsed_data = parse_tle(content)
-        elif name in ["gps", "qzss_almanac"]:
+        elif name in ["gps", "qzss"]:
             parsed_data = parse_almanac(content)
         elif name in ["gps_block_type"]:
             parsed_data = fetch_and_parse_block_type(url)
@@ -297,5 +297,3 @@ test_scraping()
 
 #url = "https://www.navcen.uscg.gov/gps-constellation"  # Replace with the correct URL
 #parsed_data = fetch_and_parse_block_type(url)
-
-#save_to_manifest("gps_1722222222", "gps")
