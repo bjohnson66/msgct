@@ -12,15 +12,15 @@
   All AI-assisted code has been thoroughly reviewed and is limited to code that is boilerplate or only for site visuals.
 */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Switch, Container, Button, Typography, Box, Stack, Grid, Checkbox, IconButton, TextField} from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline,InputLabel, Switch, Container, Typography, Box, Stack, Grid, Checkbox, FormControl, Select, MenuItem, IconButton, TextField} from '@mui/material';
 import { Helmet } from 'react-helmet';
-import Confetti from 'react-confetti';
+//import Confetti from 'react-confetti';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import GPSSatelliteTable from './components/GPSSatelliteTable';
 import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
-import { fetchAlmanacData } from './utils/fetchData';
+import { fetchAlmanacByFilename } from './utils/fetchData';
 import { calculateSatellitePosition, calculateElevationAzimuth } from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
@@ -75,7 +75,9 @@ function App() {
   const [tableSatellites, setTableSatellites] = useState(initialTableSatellites);
   const [satelliteHistories, setSatelliteHistories] = useState({});
   const [darkMode, setDarkMode] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [availableAlmanacs, setAvailableAlmanacs] = useState([]);
+  const [selectedAlmanac, setSelectedAlmanac] = useState('');
+  //const [showConfetti, setShowConfetti] = useState(false);
   const [positionSource, setPositionSource] = useState('manual');
   const [manualPosition, setManualPosition] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
   const [userPositionState, setUserPositionState] = useState({ lat: 45.0, lon: -93.0, alt: 0.0 });
@@ -216,28 +218,66 @@ function App() {
     };
   }, [updateSatellitePositions, useCurrentTime]);
 
-  const handleButtonClick = async () => {
-    try {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3500);
-  
-      const data = await fetchAlmanacData();
+  useEffect(() => {
+    // Fetch the manifest of available almanac files on load
+    const loadManifest = async () => {
+      try {
+        const response = await fetch('/sv_data/gps_data/manifest.json');
+        const filenames = await response.json();
+        setAvailableAlmanacs(filenames);
+      } catch (error) {
+        console.error('Failed to load manifest:', error);
+      }
+    };
+    loadManifest();
+  }, []);
+
+  const handleAlmanacChange = async (event) => {
+    const filename = event.target.value;
+    setSelectedAlmanac(filename);
+
+    // Fetch and set the selected almanac as global data
+    const data = await fetchAlmanacByFilename(filename);
+    if (data) {
       setGpsWeekNumber(data.week);
       setGpsAlmanacDataGlobal(data.satellites);
   
+  
+      // Reset the selectedSatellites state to unchecked for all new satellites
+
       // Reset the selectedSatellites state to unchecked for all new satellites
       const initialSelectedSatellites = {};
       data.satellites.forEach(sat => {
-        initialSelectedSatellites[sat.ID] = true; // Default unchecked for all satellites
+        initialSelectedSatellites[sat.ID] = true;
       });
       setSelectedSatellites(initialSelectedSatellites);
-  
+
       updateSatellitePositions();
-  
-    } catch (error) {
-      console.error('Failed to update satellite data:', error);
     }
   };
+
+  // const handleButtonClick = async () => {
+  //   try {
+  //     setShowConfetti(true);
+  //     setTimeout(() => setShowConfetti(false), 3500);
+  
+  //     const data = await fetchAlmanacData();
+  //     setGpsWeekNumber(data.week);
+  //     setGpsAlmanacDataGlobal(data.satellites);
+  
+  //     // Reset the selectedSatellites state to unchecked for all new satellites
+  //     const initialSelectedSatellites = {};
+  //     data.satellites.forEach(sat => {
+  //       initialSelectedSatellites[sat.ID] = true; // Default unchecked for all satellites
+  //     });
+  //     setSelectedSatellites(initialSelectedSatellites);
+  
+  //     updateSatellitePositions();
+  
+  //   } catch (error) {
+  //     console.error('Failed to update satellite data:', error);
+  //   }
+  // };
 
   useEffect(() => {
     return () => {
@@ -256,7 +296,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {showConfetti && <Confetti />}
+      {/* {showConfetti && <Confetti />} */}
 
       <Helmet>
         <title>{meta.title}</title>
@@ -276,14 +316,29 @@ function App() {
           <Typography>Dark Mode:</Typography>
           <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} id="darkModeSwitch" />
         </Box>
-        <Button
+        <FormControl fullWidth sx={{ mt: 4, mb: 2 }}>
+          <InputLabel>Select Almanac</InputLabel>
+          <Select
+            value={selectedAlmanac}
+            onChange={handleAlmanacChange}
+            label="Select Almanac"
+          >
+            {availableAlmanacs.map((filename) => (
+              <MenuItem key={filename} value={filename}>
+                {filename}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* <Button
           variant="contained"
           color="primary"
           onClick={handleButtonClick}
           sx={{ mt: 2 }}
         >
           Get Latest Almanac
-        </Button>
+        </Button> */}
 
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
