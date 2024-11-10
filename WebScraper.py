@@ -11,37 +11,37 @@ from bs4 import BeautifulSoup
 urls = {
     "galileo": {
         "url": "https://celestrak.com/NORAD/elements/galileo.txt",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "galileo_data"
     },
     "gps": {
         "url": "https://navcen.uscg.gov/sites/default/files/gps/almanac/current_yuma.alm",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "gps_data"
     },
     "glonass": {
         "url": "https://celestrak.org/NORAD/elements/glo-ops.txt",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "glonass_data"
     },
     "qzss": {
         "url": "https://sys.qzss.go.jp/dod/api/get/almanac",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "qzss_data"
     },
     "qzss_ephemeris": {
         "url": "https://sys.qzss.go.jp/dod/api/get/ephemeris",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "qzss_ephemeris_data"
     },
     "beidou": {
         "url": "https://celestrak.com/NORAD/elements/beidou.txt",
-        "interval_hours": 1,
+        "interval_hours": 48,
         "save_directory": Path("site") / "public" / "sv_data" / "beidou_data"
     },
     "gps_block_type": {
         "url": "https://www.navcen.uscg.gov/gps-constellation",
-        "interval_hours": 1,
+        "interval_hours": 144,
         "save_directory": Path("site") / "public" / "sv_data" / "gps_block_type_data"
     }
     
@@ -290,10 +290,7 @@ def test_scraping():
         fetch_and_save(name, details['url'], details['save_directory'])
 
 # Uncomment the line below to test the scraping functionality immediately
-test_scraping()
+#test_scraping()
 
 # Uncomment the line below to start the scheduled tasks
-# schedule_tasks()
-
-#url = "https://www.navcen.uscg.gov/gps-constellation"  # Replace with the correct URL
-#parsed_data = fetch_and_parse_block_type(url)
+schedule_tasks()
