@@ -9,6 +9,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 import shutil
 from subprocess import run, CalledProcessError
+import socket
+import time
 
 urls = {
     "galileo": {
@@ -48,6 +50,28 @@ urls = {
     }
     
 }
+
+
+def wait_for_network(timeout=60, interval=5):
+    """
+    Waits for the network to be available.
+
+    :param timeout: Maximum time to wait for the network (in seconds).
+    :param interval: Time between checks (in seconds).
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # Try connecting to a public server (Google's DNS)
+            socket.create_connection(("8.8.8.8", 53), timeout=2)
+            print("Network is available.")
+            return True
+        except (socket.timeout, socket.error):
+            print("Waiting for network...")
+            time.sleep(interval)
+    print("Network not available after waiting.")
+    return False
+
 
 def copy_to_apache(full_copy=True, constellation_name=None):
     """
@@ -341,9 +365,15 @@ def test_scraping():
     for name, details in urls.items():
         fetch_and_save(name, details['url'], details['save_directory'])
 
-# Uncomment the line below to test the scraping functionality immediately
-#uncommented because we want it to get new almanac immediately on startup
-test_scraping()
+if __name__ == "__main__":
+    # Wait for server to connect to internet before scraping
+    print("Starting script to gather MGNSS data. . . ")
+    print("Waiting for netowrk ...")
+    while not wait_for_network():
+        pass
+    print("CONNECTED!")
+    # We want it to get new almanac immediately on startup
+    test_scraping()
 
-# Uncomment the line below to start the scheduled tasks
-schedule_tasks()
+    # Start the scheduled tasks
+    schedule_tasks()
