@@ -342,7 +342,8 @@ def test_scraping():
         fetch_and_save(name, details['url'], details['save_directory'])
 
 # Uncomment the line below to test the scraping functionality immediately
-#test_scraping()
+#uncommented because we want it to get new almanac immediately on startup
+test_scraping()
 
 # Uncomment the line below to start the scheduled tasks
 schedule_tasks()
