@@ -167,7 +167,7 @@
             "ArgumentOfPerigee": 0.969923394,
             "MeanAnom": -2.42485923,
             "Af0": 0.0006809234619,
-            "Af1": 0.0
+            "Af1": 3.637978807e-12
         },
         {
             "ID": "14",
@@ -204,7 +204,7 @@
             "TimeOfApplicability": 589824.0,
             "OrbitalInclination": 0.9610833052,
             "RateOfRightAscen": -8.011762293e-09,
-            "SQRT_A": 5153.57373,
+            "SQRT_A": 5153.573731,
             "RightAscenAtWeek": -2.369677492,
             "ArgumentOfPerigee": 0.84761202,
             "MeanAnom": -1.135393707,
@@ -330,7 +330,7 @@
             "TimeOfApplicability": 589824.0,
             "OrbitalInclination": 0.9497881733,
             "RateOfRightAscen": -8.114623721e-09,
-            "SQRT_A": 5153.660645,
+            "SQRT_A": 5153.660644,
             "RightAscenAtWeek": -2.475501569,
             "ArgumentOfPerigee": 1.094575062,
             "MeanAnom": 0.488813689,
@@ -434,6 +434,62 @@
             "MeanAnom": -1.41051406,
             "Af0": -0.0005874633789,
             "Af1": 3.637978807e-12
+        },
+        {
+            "ID": "194",
+            "Health": "001",
+            "Eccentricity": 0.07461410522,
+            "TimeOfApplicability": 520192.0,
+            "OrbitalInclination": 0.7049540537,
+            "RateOfRightAscen": -3.108700918e-09,
+            "SQRT_A": 6493.713379,
+            "RightAscenAtWeek": -2.147373116,
+            "ArgumentOfPerigee": -1.555910047,
+            "MeanAnom": 0.08370269533,
+            "Af0": -9.536743164e-07,
+            "Af1": 0.0
+        },
+        {
+            "ID": "195",
+            "Health": "001",
+            "Eccentricity": 0.07473617554,
+            "TimeOfApplicability": 520192.0,
+            "OrbitalInclination": 0.7062962869,
+            "RateOfRightAscen": -2.320096641e-09,
+            "SQRT_A": 6493.443848,
+            "RightAscenAtWeek": -0.4143388468,
+            "ArgumentOfPerigee": -1.572476365,
+            "MeanAnom": -1.619717805,
+            "Af0": -4.768371582e-06,
+            "Af1": 0.0
+        },
+        {
+            "ID": "196",
+            "Health": "001",
+            "Eccentricity": 0.07467704773,
+            "TimeOfApplicability": 520192.0,
+            "OrbitalInclination": 0.6309874176,
+            "RateOfRightAscen": -2.731542351e-09,
+            "SQRT_A": 6493.135254,
+            "RightAscenAtWeek": 1.285770263,
+            "ArgumentOfPerigee": -1.565425522,
+            "MeanAnom": 2.879705132,
+            "Af0": 2.193450928e-05,
+            "Af1": 0.0
+        },
+        {
+            "ID": "199",
+            "Health": "001",
+            "Eccentricity": 0.0001721382141,
+            "TimeOfApplicability": 520192.0,
+            "OrbitalInclination": 0.0012403673,
+            "RateOfRightAscen": 1.108617607e-09,
+            "SQRT_A": 6493.46582,
+            "RightAscenAtWeek": 3.102955512,
+            "ArgumentOfPerigee": -0.206487446,
+            "MeanAnom": -0.4449810119,
+            "Af0": 0.0,
+            "Af1": 0.0
         }
     ]
 }

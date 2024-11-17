@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
+import { pink } from '@mui/material/colors';
 
-function SkyPlot({ satellites, satelliteHistories, darkMode }) {
+function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode }) {
     const svgRef = useRef(null);
   
     useEffect(() => {
@@ -9,11 +10,19 @@ function SkyPlot({ satellites, satelliteHistories, darkMode }) {
       const circleColor = darkMode ? '#ffffff' : '#000000'; // White in dark mode, black in light mode
       const lineColor = darkMode ? '#aaaaaa' : '#666666';   // Light gray in dark mode, darker in light mode
       const textColor = darkMode ? '#ffffff' : '#000000';   // White in dark mode, black in light mode
-      const satelliteColor = darkMode ? 'yellow' : 'red';   // Yellow in dark mode, red in light mode
       const tailColor = darkMode ? 'lightblue' : 'blue';    // Light blue in dark mode, blue in light mode
   
+      // Constellation color mapping
+      const constellationColors = {
+        gps: darkMode ? 'yellow' : 'red',
+        qzss: '#1e88e5',       // Blue
+        galileo: '#039be5',    // Light blue
+        glonass: pink[500],    // Pink
+        beidou: '#e53935',     // Red
+      };
+
       // Function to draw the sky plot with updated satellite data
-      const drawSkyPlot = (satellites) => {
+      const drawSkyPlot = () => {
         // Dimensions
         const width = 400;
         const height = 400;
@@ -83,86 +92,103 @@ function SkyPlot({ satellites, satelliteHistories, darkMode }) {
         });
   
         // Plot satellites and their tails
-        satellites.forEach((sat) => {
-          const { azimuth, elevation, ID, health } = sat;
+        Object.keys(mgnssRelativePositions).forEach((constellation) => {
+          // Skip if constellation is not selected
+          if (!selectedConstellations[constellation]) {
+            return;
+          }
   
-          // Convert azimuth and elevation to position
-          const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
-          const elevRad = elevationScale(elevation);
+          const satellites = mgnssRelativePositions[constellation];
   
-          const x = Math.cos(azRad) * elevRad;
-          const y = Math.sin(azRad) * elevRad;
-  
-          // Draw tail if history exists
-          const history = satelliteHistories[ID];
-          if (history && history.length > 1) {
-            const lineGenerator = d3.line()
-              .x(d => {
-                const az = (d.azimuth - 90) * (Math.PI / 180);
-                const r = elevationScale(d.elevation);
-                return Math.cos(az) * r;
-              })
-              .y(d => {
-                const az = (d.azimuth - 90) * (Math.PI / 180);
-                const r = elevationScale(d.elevation);
-                return Math.sin(az) * r;
-              })
-              .curve(d3.curveCatmullRom.alpha(0.5));
-  
-            // Create a group for the tail
-            const tailGroup = g.append('g');
-  
-            // For each segment between points, draw a line with decreasing opacity
-            for (let i = 1; i < history.length; i++) {
-              const segment = [history[i - 1], history[i]];
-              const age = i / history.length; // Older segments have smaller age values
-              const opacity = age; // Adjust this to control fading effect
-  
-              tailGroup.append('path')
-                .datum(segment)
-                .attr('d', lineGenerator)
-                .attr('fill', 'none')
-                .attr('stroke', tailColor)
-                .attr('stroke-width', 1)
-                .attr('stroke-opacity', opacity);
+          satellites.forEach((sat) => {
+            // Skip if satellite is not selected
+            if (!selectedSatellites[constellation]?.[sat.ID]) {
+              return;
             }
-          }
   
-          // Draw satellite point
-          if (health === "000") {  // Check if satellite is healthy
-            g.append('circle')
-              .attr('cx', x)
-              .attr('cy', y)
-              .attr('r', 5)
-              .attr('fill', satelliteColor);
-          } else {
-            // Draw an "X" for unhealthy satellites
-            const size = 5;
-            g.append('line')
-              .attr('x1', x - size).attr('y1', y - size)
-              .attr('x2', x + size).attr('y2', y + size)
-              .attr('stroke', satelliteColor).attr('stroke-width', 2);
-            g.append('line')
-              .attr('x1', x - size).attr('y1', y + size)
-              .attr('x2', x + size).attr('y2', y - size)
-              .attr('stroke', satelliteColor).attr('stroke-width', 2);
-          }
+            const { azimuth, elevation, ID, health } = sat;
   
-          // Add label
-          g.append('text')
-            .attr('x', x)
-            .attr('y', y - 10)
-            .attr('text-anchor', 'middle')
-            .attr('fill', textColor)
-            .text(ID);
+            // Convert azimuth and elevation to position
+            const azRad = (azimuth - 90) * (Math.PI / 180); // Offset by -90° to align north at top
+            const elevRad = elevationScale(elevation);
+  
+            const x = Math.cos(azRad) * elevRad;
+            const y = Math.sin(azRad) * elevRad;
+  
+            // Get the color for the constellation
+            const satelliteColor = constellationColors[constellation] || (darkMode ? 'yellow' : 'red');
+  
+            // Draw tail if history exists
+            const history = satelliteHistories[constellation]?.[ID];
+            if (history && history.length > 1) {
+              const lineGenerator = d3.line()
+                .x(d => {
+                  const az = (d.azimuth - 90) * (Math.PI / 180);
+                  const r = elevationScale(d.elevation);
+                  return Math.cos(az) * r;
+                })
+                .y(d => {
+                  const az = (d.azimuth - 90) * (Math.PI / 180);
+                  const r = elevationScale(d.elevation);
+                  return Math.sin(az) * r;
+                })
+                .curve(d3.curveCatmullRom.alpha(0.5));
+  
+              // Create a group for the tail
+              const tailGroup = g.append('g');
+  
+              // For each segment between points, draw a line with decreasing opacity
+              for (let i = 1; i < history.length; i++) {
+                const segment = [history[i - 1], history[i]];
+                const age = i / history.length; // Older segments have smaller age values
+                const opacity = age; // Adjust this to control fading effect
+  
+                tailGroup.append('path')
+                  .datum(segment)
+                  .attr('d', lineGenerator)
+                  .attr('fill', 'none')
+                  .attr('stroke', tailColor)
+                  .attr('stroke-width', 1)
+                  .attr('stroke-opacity', opacity);
+              }
+            }
+  
+            // Draw satellite point or symbol
+            if (health === "000" || health === 0) {  // Check if satellite is healthy
+              g.append('circle')
+                .attr('cx', x)
+                .attr('cy', y)
+                .attr('r', 5)
+                .attr('fill', satelliteColor);
+            } else {
+              // Draw an "X" for unhealthy satellites
+              const size = 5;
+              g.append('line')
+                .attr('x1', x - size).attr('y1', y - size)
+                .attr('x2', x + size).attr('y2', y + size)
+                .attr('stroke', satelliteColor).attr('stroke-width', 2);
+              g.append('line')
+                .attr('x1', x - size).attr('y1', y + size)
+                .attr('x2', x + size).attr('y2', y - size)
+                .attr('stroke', satelliteColor).attr('stroke-width', 2);
+            }
+  
+            // Add label
+            g.append('text')
+              .attr('x', x)
+              .attr('y', y - 10)
+              .attr('text-anchor', 'middle')
+              .attr('fill', textColor)
+              .text(ID);
+          });
         });
       };
   
       // Draw the sky plot initially
-      drawSkyPlot(satellites);
+      drawSkyPlot();
   
       // Update the sky plot whenever satellites data, histories, or darkMode change
-    }, [satellites, satelliteHistories, darkMode]); // Redraw when satellites, histories, or darkMode data changes
+    }, [mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode]); //redraw if data changes
   
     return (
       <svg ref={svgRef}></svg>

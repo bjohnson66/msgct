@@ -3,7 +3,7 @@ import { FormGroup, FormControlLabel, Checkbox, Box } from '@mui/material';
 import { pink } from '@mui/material/colors';
 
 
-function SelectSVsOfInterest() {
+function SelectSVsOfInterest({ onSelectionChange }) {
     const [checked, setChecked] = React.useState({
       gps: true,
       ca: true,
@@ -17,29 +17,35 @@ function SelectSVsOfInterest() {
   
     // Handle changes for the GPS parent checkbox
     const handleChangeGPS = (event) => {
-      setChecked({
+      const newChecked = {
         ...checked,
         gps: event.target.checked,
         ca: event.target.checked,
         p: event.target.checked,
         other: event.target.checked,
-      });
+      };
+      setChecked(newChecked);
+      onSelectionChange(newChecked); // Notify parent
     };
   
     // Handle changes for individual child checkboxes (GPS Code Types)
     const handleChangeCodeType = (event) => {
-      setChecked({
+      const newChecked = {
         ...checked,
         [event.target.name]: event.target.checked,
-      });
+      };
+      setChecked(newChecked);
+      onSelectionChange(newChecked); // Notify parent
     };
   
     // Handle changes for individual constellations (other than GPS)
     const handleChangeConstellation = (event) => {
-      setChecked({
+      const newChecked = {
         ...checked,
         [event.target.name]: event.target.checked,
-      });
+      };
+      setChecked(newChecked);
+      onSelectionChange(newChecked); // Notify parent
     };
   
     // Determine if the GPS checkbox should be indeterminate

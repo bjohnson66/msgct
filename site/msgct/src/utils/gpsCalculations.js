@@ -1,3 +1,4 @@
+import * as satellite from 'satellite.js';
 //-------------------------------------
 // GPS Satellite Calculaitons - ECEF
 //--------------------------------------
@@ -95,95 +96,6 @@ export const calculateSatellitePosition = (
 };
 
 
-// This implementation is from GPS ICD200C Table 20-IV
-// https://www.gps.gov/technical/icwg/ICD-GPS-200C.pdf
-// export const calculateSatellitePosition = (
-//   satelliteData,
-//   t,
-//   deltaN = 0,
-//   cuc = 0,  // Latitude correction coefficient (cosine)
-//   cus = 0,  // Latitude correction coefficient (sine)
-//   crc = 0,  // Radius correction coefficient (cosine)
-//   crs = 0,  // Radius correction coefficient (sine)
-//   cic = 0,  // Inclination correction coefficient (cosine)
-//   cis = 0,  // Inclination correction coefficient (sine)
-//   IDOT = 0  // Rate of change of inclination angle
-// ) => {
-//   const {
-//     SQRT_A, // Square root of the semi-major axis (m^1/2)
-//     Eccentricity, // Eccentricity of the orbit
-//     OrbitalInclination, // Inclination angle (i0) in radians
-//     RightAscenAtWeek, // Right ascension of the ascending node (Ω0)
-//     ArgumentOfPerigee, // Argument of perigee (ω)
-//     MeanAnom, // Mean anomaly (M0)
-//     TimeOfApplicability, // toe: Time of ephemeris applicability (seconds)
-//     RateOfRightAscen // Rate of right ascension (Ω̇)
-//   } = satelliteData;
-
-//   // Step 1: Semi-major axis (A)
-//   const A = SQRT_A ** 2;
-
-//   // Step 2: Compute mean motion (n_0)
-//   const n_0 = Math.sqrt(mu / (A ** 3));
-
-//   // Step 3: Time from ephemeris reference epoch (tk)
-//   let t_k = t - TimeOfApplicability;
-//   if (t_k > 302400) t_k -= 604800; // Adjust for end of week
-//   if (t_k < -302400) t_k += 604800;
-
-//   // Step 4: Corrected mean motion (n)
-//   const n = n_0 + deltaN;
-
-//   // Step 5: Mean anomaly (Mk) at time t
-//   const M_k = MeanAnom + n * t_k;
-
-//   // Step 6: Solve Kepler's Equation for eccentric anomaly (Ek) using iterative method
-//   let E_k = M_k;
-//   for (let i = 0; i < 10; i++) {
-//     E_k = M_k + Eccentricity * Math.sin(E_k);
-//   }
-
-//   // Step 7: True anomaly (vk)
-//   const v_k = 2 * Math.atan2(
-//     Math.sqrt(1 + Eccentricity) * Math.sin(E_k / 2),
-//     Math.sqrt(1 - Eccentricity) * Math.cos(E_k / 2)
-//   );
-
-//   // Step 8: Argument of latitude (Φk)
-//   const phi_k = v_k + ArgumentOfPerigee;
-
-//   // Step 9: Second harmonic perturbations
-//   const delta_u_k = cus * Math.sin(2 * phi_k) + cuc * Math.cos(2 * phi_k); // Latitude correction
-//   const delta_r_k = crs * Math.sin(2 * phi_k) + crc * Math.cos(2 * phi_k); // Radius correction
-//   const delta_i_k = cis * Math.sin(2 * phi_k) + cic * Math.cos(2 * phi_k); // Inclination correction
-
-//   // Step 10: Corrected argument of latitude (uk)
-//   const u_k = phi_k + delta_u_k;
-
-//   // Step 11: Corrected radius (rk)
-//   const r_k = A * (1 - Eccentricity * Math.cos(E_k)) + delta_r_k;
-
-//   // Step 12: Corrected inclination (ik)
-//   const i_k = OrbitalInclination + delta_i_k + (IDOT * t_k);
-
-//   // Step 13: Orbital plane positions (x', y')
-//   const x_prime_k = r_k * Math.cos(u_k);
-//   const y_prime_k = r_k * Math.sin(u_k);
-
-//   // Step 14: Corrected longitude of ascending node (Ωk)
-//   const omega_k = RightAscenAtWeek + (RateOfRightAscen - OMEGA_DOT_E) * t_k - (OMEGA_DOT_E * TimeOfApplicability);
-
-//   // Step 15: Earth-fixed coordinates (ECEF)
-//   const x = x_prime_k * Math.cos(omega_k) - y_prime_k * Math.cos(i_k) * Math.sin(omega_k);
-//   const y = x_prime_k * Math.sin(omega_k) + y_prime_k * Math.cos(i_k) * Math.cos(omega_k);
-//   const z = y_prime_k * Math.sin(i_k);
-
-//   // Return the satellite's position in ECEF coordinates (x, y, z)
-//   return { x, y, z };
-// };
-
-
-
 //--------------------------------------
 // GPS SV Calculaiton topocentric coordinates
 //--------------------------------------
@@ -251,3 +163,34 @@ function estimateSNR(elevation) {
   const snr = Math.min(50, Math.max(0, elevation * (50 / 90)));
   return snr;
 }
+
+export const calculateSatellitePositionFromTLE = (tleLine1, tleLine2, timeUTC) => {
+  // Parse TLE lines
+  const satrec = satellite.twoline2satrec(tleLine1, tleLine2);
+
+  // Convert timeUTC (seconds since UNIX epoch) to JavaScript Date object
+  const date = new Date(timeUTC * 1000);
+
+  // Propagate satellite using time
+  const positionAndVelocity = satellite.propagate(satrec, date);
+
+  // Check for errors in propagation
+  if (!positionAndVelocity.position) {
+    console.error('Propagation error:', positionAndVelocity);
+    return null;
+  }
+
+  // Get ECI coordinates
+  const positionEci = positionAndVelocity.position;
+
+  // Convert ECI coordinates to ECEF
+  const gmst = satellite.gstime(date);
+  const positionEcf = satellite.eciToEcf(positionEci, gmst);
+
+  // Return ECEF coordinates in meters
+  return {
+    x: positionEcf.x * 1000, // Convert km to meters
+    y: positionEcf.y * 1000,
+    z: positionEcf.z * 1000,
+  };
+};

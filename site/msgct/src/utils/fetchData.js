@@ -1,10 +1,9 @@
 //-------------------------------------
 // Retreiving Almanac Data from Server
 //-------------------------------------
-export const fetchAlmanacByFilename = async (filename) => {
-    try {
-      console.log(`Opening /sv_data/gps_data/${filename}`);
-      const response = await fetch(`/sv_data/gps_data/${filename}`);
+export const fetchAlmanacByFilename = async (filename, constellation) => {
+  try {
+      const response = await fetch(`/sv_data/${constellation}_data/${filename}`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

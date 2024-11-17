@@ -8,12 +8,52 @@ function SerialPortComponent({ onPositionUpdate, positionSource }) {
   const [selectedPortInfo, setSelectedPortInfo] = useState(null); // Selected port info object
   const [serialData, setSerialData] = useState(''); // Raw serial data to display
   const [isPortOpen, setIsPortOpen] = useState(false); // Track if port is open
-  const [serialTableData, setSerialTableData] = useState([]); // Data for the table
-  const [selectedSatellites, setSelectedSatellites] = useState({}); // State for selected satellites
+  const [serialTableData, setSerialTableData] = useState({
+    gps: [],
+    qzss: [],
+    galileo: [],
+    beidou: [],
+    glonass: [],
+  }); // Data for the table
+  const [selectedSatellites, setSelectedSatellites] = useState({
+    gps: {},
+    qzss: {},
+    galileo: {},
+    beidou: {},
+    glonass: {},
+  }); // State for selected satellites
+
+  const [selectedConstellations] = useState({
+    gps: true,
+    qzss: true,
+    galileo: true,
+    beidou: true,
+    glonass: true,
+  }); // All constellations selected by default
 
   const readerRef = useRef(null);
   const bufferRef = useRef(''); // Buffer to store incoming data
   const readableStreamClosedRef = useRef(null); // Reference to the readableStreamClosed promise
+
+   // Function to determine the constellation based on PRN
+   const getConstellationFromPRN = (prn) => {
+    prn = parseInt(prn, 10);
+    if (prn >= 1 && prn <= 32) {
+      return 'gps';
+    } else if (prn >= 33 && prn <= 64) {
+      return 'sbas'; // Optional: handle SBAS separately
+    } else if (prn >= 65 && prn <= 96) {
+      return 'glonass';
+    } else if (prn >= 193 && prn <= 199) {
+      return 'qzss';
+    } else if (prn >= 201 && prn <= 237) {
+      return 'beidou';
+    } else if (prn >= 301 && prn <= 336) {
+      return 'galileo';
+    } else {
+      return 'unknown';
+    }
+  };
 
   // Request available ports on page load
   useEffect(() => {
@@ -124,34 +164,44 @@ function SerialPortComponent({ onPositionUpdate, positionSource }) {
       line.startsWith('$GLGSV') ||
       line.startsWith('$GAGSV') ||
       line.startsWith('$BDGSV') ||
-      line.startsWith('$GNGSV') // Added for combined GNSS sentences
+      line.startsWith('$QZGSV') ||
+      line.startsWith('$GNGSV') // Combined GNSS sentences
     ) {
-    
       const satelliteInfo = parseGSV(line);
       if (satelliteInfo && satelliteInfo.length > 0) {
-        // Update serialTableData
-        setSerialTableData((prevData) => {
-          const satellitesByID = {};
-          prevData.forEach((sat) => {
-            satellitesByID[sat.ID] = sat;
-          });
-          satelliteInfo.forEach((sat) => {
-            satellitesByID[sat.ID] = sat;
-          });
-          return Object.values(satellitesByID).sort(
-            (a, b) => parseInt(a.ID) - parseInt(b.ID)
-          );
-        });
-
-        // Update selectedSatellites state
-        setSelectedSatellites((prevSelected) => {
-          const newSelected = { ...prevSelected };
-          satelliteInfo.forEach((sat) => {
-            if (!(sat.ID in newSelected)) {
-              newSelected[sat.ID] = true; // Default to true (checked)
-            }
-          });
-          return newSelected;
+        satelliteInfo.forEach((sat) => {
+          const constellation = getConstellationFromPRN(sat.ID);
+          if (constellation !== 'unknown') {
+            // Update serialTableData
+            setSerialTableData((prevData) => {
+              const updatedData = { ...prevData };
+              if (!updatedData[constellation]) {
+                updatedData[constellation] = [];
+              }
+    
+              const satellitesByID = {};
+              updatedData[constellation].forEach((existingSat) => {
+                satellitesByID[existingSat.ID] = existingSat;
+              });
+              satellitesByID[sat.ID] = sat;
+              updatedData[constellation] = Object.values(satellitesByID).sort(
+                (a, b) => parseInt(a.ID) - parseInt(b.ID)
+              );
+              return updatedData;
+            });
+    
+            // Update selectedSatellites state
+            setSelectedSatellites((prevSelected) => {
+              const updatedSelected = { ...prevSelected };
+              if (!updatedSelected[constellation]) {
+                updatedSelected[constellation] = {};
+              }
+              if (!(sat.ID in updatedSelected[constellation])) {
+                updatedSelected[constellation][sat.ID] = true; // Default to true (checked)
+              }
+              return updatedSelected;
+            });
+          }
         });
       }
     } else if (
@@ -159,9 +209,9 @@ function SerialPortComponent({ onPositionUpdate, positionSource }) {
       line.startsWith('$GLGGA') ||
       line.startsWith('$GAGGA') ||
       line.startsWith('$BDGGA') ||
-      line.startsWith('$GNGGA') // Added for combined GNSS sentences
+      line.startsWith('$QZGGA') ||
+      line.startsWith('$GNGGA') // Combined GNSS sentences
     ) {
-      
       const positionInfo = parseGGA(line);
       if (positionInfo && onPositionUpdate && positionSource === 'receiver') {
         console.log('Position update:', positionInfo);
@@ -350,7 +400,8 @@ function SerialPortComponent({ onPositionUpdate, positionSource }) {
             Parsed Satellite Data
           </Typography>
           <GPSSatelliteTable
-            tableSatellites={serialTableData}
+            mgnssRelativePositions={serialTableData}
+            selectedConstellations={selectedConstellations}
             selectedSatellites={selectedSatellites}
             setSelectedSatellites={setSelectedSatellites}
           />
