@@ -7,6 +7,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 from bs4 import BeautifulSoup
+import shutil
+from subprocess import run, CalledProcessError
 
 urls = {
     "galileo": {
@@ -46,6 +48,54 @@ urls = {
     }
     
 }
+
+def copy_to_apache(full_copy=True, constellation_name=None):
+    """
+    Copies the /site/public/sv_data directory or a specific constellation's directory
+    into /var/www/html/sv_data.
+
+    :param full_copy: Whether to copy the entire sv_data directory (default: True).
+    :param constellation_name: The specific constellation directory to copy (if full_copy=False).
+    """
+    # Define paths
+    source_path = Path("site") / "public" / "sv_data"
+    destination_path = Path("/var/www/html/sv_data")
+    
+    try:
+        if full_copy:
+            # Ensure source path exists
+            if not source_path.exists():
+                print(f"Source path {source_path} does not exist. Skipping copy.")
+                return
+
+            # Copy the entire directory
+            print(f"Copying {source_path} to {destination_path}...")
+            shutil.copytree(source_path, destination_path, dirs_exist_ok=True)
+
+        else:
+            # Copy only the relevant constellation's directory
+            if not constellation_name:
+                print("No constellation specified for partial copy. Skipping.")
+                return
+
+            specific_source = source_path / f"{constellation_name}_data"
+            specific_destination = destination_path / f"{constellation_name}_data"
+
+            # Ensure the specific source path exists
+            if not specific_source.exists():
+                print(f"Source path {specific_source} does not exist. Skipping.")
+                return
+
+            print(f"Copying {specific_source} to {specific_destination}...")
+            shutil.copytree(specific_source, specific_destination, dirs_exist_ok=True)
+
+        print("Data successfully copied to Apache server!")
+
+    except FileNotFoundError as e:
+        print(f"File not found during copy: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 
 def find_current_satellite_week_number():
     # Define the GPS epoch start date (January 6, 1980)
@@ -243,6 +293,8 @@ def fetch_and_save(name, url, save_directory):
             file_name = f"{name}_{epoch_seconds}.json"
             # Call save_to_manifest with the correct parameters
             save_to_manifest(file_name, name)
+            #copy over to apache location for hosting
+            copy_to_apache(full_copy=False, constellation_name=name)
         else:
             # Save the parsed JSON to the designated directory
             file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
