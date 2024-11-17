@@ -317,11 +317,10 @@ def fetch_and_save(name, url, save_directory):
             file_name = f"{name}_{epoch_seconds}.json"
             # Call save_to_manifest with the correct parameters
             save_to_manifest(file_name, name)
-            #copy over to apache location for hosting
-            copy_to_apache(full_copy=False, constellation_name=name)
         else:
             # Save the parsed JSON to the designated directory
             file_name = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
         file_path = os.path.join(save_directory, file_name)
         try:
             with open(file_path, "w") as file:
@@ -330,6 +329,8 @@ def fetch_and_save(name, url, save_directory):
             print(f"Error writing JSON file: {e}")
 
         print(f"Saved {name} data to {file_path}")
+        #copy over to apache location for hosting
+        copy_to_apache(full_copy=False, constellation_name=name)
 
     except (requests.exceptions.RequestException, httpx.RequestError, json.JSONDecodeError) as e:
         # Log error to file and print to console
