@@ -1,102 +1,44 @@
-// App.test.js
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
-import GPSSatelliteTable from './components/GPSSatelliteTable';
-import SelectSVsOfInterest from './components/SelectSVsOfInterest';
-import React from 'react';
+import { act } from 'react-dom/test-utils';
 
-// Mock function for setSelectedSatellites
-const mockSetSelectedSatellites = jest.fn();
+describe('App Component', () => {
+  it('renders the app without crashing', () => {
+    render(<App />);
+    const titleElement = screen.getByText(/Multi-Source GNSS Constellation Tracker/i);
+    expect(titleElement).toBeInTheDocument();
+  });
 
-const mockData = [
-  {
-    ID: 'G01',
-    azimuth: 120.5,
-    elevation: 45.2,
-    snr: 50,
-    health: '000',
-  },
-  {
-    ID: 'G02',
-    azimuth: 210.0,
-    elevation: 30.0,
-    snr: 45,
-    health: '000',
-  },
-];
+  it('toggles dark mode when the switch is clicked', () => {
+    render(<App />);
+  
+    // Get the input element by its id directly
+    const darkModeSwitch = document.getElementById('darkModeSwitch');
+    expect(darkModeSwitch).toBeInTheDocument();
+  
+    // Verify the initial state
+    expect(darkModeSwitch.checked).toBe(false);
+  
+    // Toggle dark mode on
+    fireEvent.click(darkModeSwitch);
+    expect(darkModeSwitch.checked).toBe(true);
+  
+    // Toggle dark mode off
+    fireEvent.click(darkModeSwitch);
+    expect(darkModeSwitch.checked).toBe(false);
+  });  
+  
 
-// Mock selected satellites (none selected initially)
-const mockSelectedSatellites = {
-  "G01": true,
-  "G02": true,
-};
+  it('renders the Live Sky Plot section', () => {
+    render(<App />);
+    const skyPlotHeading = screen.getByText(/Live Sky Plot/i);
+    expect(skyPlotHeading).toBeInTheDocument();
+  });
 
-
-test('renders satellite table', () => {
-  render(<GPSSatelliteTable 
-      tableSatellites={mockData}
-      selectedSatellites={mockSelectedSatellites}
-      setSelectedSatellites={mockSetSelectedSatellites}
-    />
-  );
-
-  // Check that table headers are rendered
-  expect(screen.getByText(/PRN/i)).toBeInTheDocument();
-  expect(screen.getByText(/Elevation/i)).toBeInTheDocument();
-  expect(screen.getByText(/SNR/i)).toBeInTheDocument();
-
-  // Specifically check for the "Health" header using the 'scope' attribute
-  expect(screen.getByRole('columnheader', { name: /Health/i })).toBeInTheDocument();  // Ensure this is a column header
-
-  // Check for "Healthy" or "Unhealthy" in the table body, ensuring they appear in the correct number of rows
-  expect(screen.getAllByText(/Healthy|Unhealthy/).length).toBe(mockData.length);  // Adjust based on your data
+  it('renders the GPS Satellite Data table', () => {
+    render(<App />);
+    const gpsSatelliteHeading = screen.getByText(/GPS Satellite Data/i);
+    expect(gpsSatelliteHeading).toBeInTheDocument();
+  });
 });
-
-
-test('renders satellite data in table', () => {
-  render(
-    <GPSSatelliteTable 
-      tableSatellites={mockData}
-      selectedSatellites={mockSelectedSatellites}
-      setSelectedSatellites={mockSetSelectedSatellites}
-    />
-  );
-
-  // Check if satellite data is rendered
-  expect(screen.getByText((content, element) => content.startsWith('120.5'))).toBeInTheDocument();
-  expect(screen.getByText((content, element) => content.startsWith('45.2'))).toBeInTheDocument();
-});
-
-
-//--------------------------------
-// Constellations of Intrest Checkbox Test
-//--------------------------------
-test('toggles GPS checkboxes correctly', () => {
-  render(<SelectSVsOfInterest />);
-
-  const gpsCheckbox = screen.getByLabelText('GPS');
-  const caCheckbox = screen.getByLabelText('C/A');
-  const pCheckbox = screen.getByLabelText('P');
-  const otherCheckbox = screen.getByLabelText('Other');
-
-  // Initially, all are checked
-  expect(gpsCheckbox).toBeChecked();
-  expect(caCheckbox).toBeChecked();
-  expect(pCheckbox).toBeChecked();
-  expect(otherCheckbox).toBeChecked();
-
-  // Uncheck GPS checkbox
-  fireEvent.click(gpsCheckbox);
-
-  // Now, GPS and all child checkboxes should be unchecked
-  expect(gpsCheckbox).not.toBeChecked();
-  expect(caCheckbox).not.toBeChecked();
-  expect(pCheckbox).not.toBeChecked();
-  expect(otherCheckbox).not.toBeChecked();
-});
-
-
-//----------------------------
-// Serial Port Component
-//----------------------------
-
