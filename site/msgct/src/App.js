@@ -171,6 +171,7 @@ export const resetMgnssRelativePositionsGlobal = () => {
 //  Main App Component
 //--------------------------------------
 function App() {
+  const [showLabels, setShowLabels] = useState(true);
   const [selectedConstellations, setSelectedConstellations] = useState({
     gps: true,
     ca: true,
@@ -695,8 +696,21 @@ function App() {
                 selectedSatellites={selectedSatellites}
                 darkMode={darkMode}
                 satelliteHistories={satelliteHistories}
+                showLabels={showLabels}
               />
             )}
+            <Typography>Show Satellite Labels:</Typography>
+            <Switch
+              checked={showLabels}
+              onChange={() => setShowLabels(!showLabels)}
+              id="showLabelsSwitch"
+            />
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Select SVs of Interest
+              </Typography>
+              <SelectSVsOfInterest onSelectionChange={handleConstellationSelectionChange} />
+            </Grid>
           </Grid>
           <Grid item xs={11} md={8}>
             <Typography variant="h6" gutterBottom>
@@ -721,12 +735,6 @@ function App() {
             setManualPosition={setManualPosition}
             receiverPosition={userPositionState}
           />
-        </Grid>
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Select SVs of Interest
-          </Typography>
-          <SelectSVsOfInterest onSelectionChange={handleConstellationSelectionChange} />
         </Grid>
         <Grid item xs={12}>
           <SerialPortComponent onPositionUpdate={handlePositionUpdate} positionSource={positionSource} />

@@ -3,8 +3,45 @@ import * as d3 from 'd3';
 import { COLORS, getColor } from '../utils/colors';
 
 
-function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode }) {
+function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode, showLabels}) {
     const svgRef = useRef(null);
+
+    // Helper function to generate the abbreviated satellite label
+    const getAbbreviatedSatelliteLabel = (satellite, constellation) => {
+      if (satellite.ID) {
+        // For GPS and QZSS, satellite.ID is likely already suitable
+        if (constellation === 'gps' || constellation === 'qzss') {
+          return satellite.ID;
+        }
+
+        // For other constellations, extract from parentheses
+        const match = satellite.ID.match(/\(([^)]+)\)/);
+        if (match && match[1]) {
+          let label = match[1];
+
+          if (constellation === 'galileo') {
+            // For Galileo, prefix with 'G' and extract number
+            const numberMatch = label.match(/GALILEO\s+(\d+)/i);
+            if (numberMatch && numberMatch[1]) {
+              return `G${numberMatch[1]}`;
+            } else {
+              // If not matching 'GALILEO <number>', use the label as is
+              return label;
+            }
+          } else {
+            // For other constellations, use the label as is
+            return label;
+          }
+        } else {
+          // If no parentheses, use the ID as is
+          return satellite.ID;
+        }
+      }
+
+      // If no ID, return 'Unknown'
+      return 'Unknown';
+    };
+
   
     useEffect(() => {
       // Define colors based on darkMode
@@ -27,8 +64,8 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       // Function to draw the sky plot with updated satellite data
       const drawSkyPlot = () => {
         // Dimensions
-        const width = 400;
-        const height = 400;
+        const width = 500;
+        const height = 500;
         const margin = 40;
         const radius = Math.min(width, height) / 2 - margin;
   
@@ -85,13 +122,15 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
           // Add label
           const labelX = Math.cos(angle) * (radius + 15);
           const labelY = Math.sin(angle) * (radius + 15);
-          g.append('text')
-            .attr('x', labelX)
-            .attr('y', labelY)
-            .attr('text-anchor', 'middle')
-            .attr('alignment-baseline', 'middle')
-            .attr('fill', textColor)
-            .text(`${az}°`);
+          if (az !== 0){
+            g.append('text')
+              .attr('x', labelX)
+              .attr('y', labelY)
+              .attr('text-anchor', 'middle')
+              .attr('alignment-baseline', 'middle')
+              .attr('fill', textColor)
+              .text(`${az}°`);
+          }
         });
   
         // Plot satellites and their tails
@@ -176,13 +215,16 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
                 .attr('stroke', satelliteColor).attr('stroke-width', 2);
             }
   
-            // Add label
-            g.append('text')
-              .attr('x', x)
-              .attr('y', y - 10)
-              .attr('text-anchor', 'middle')
-              .attr('fill', textColor)
-              .text(ID);
+            if (showLabels) {
+              const abbrivatedLabel = getAbbreviatedSatelliteLabel(sat, constellation);
+              // Add label
+              g.append('text')
+                .attr('x', x)
+                .attr('y', y - 10)
+                .attr('text-anchor', 'middle')
+                .attr('fill', textColor)
+                .text(abbrivatedLabel);
+            }
           });
         });
       };
@@ -191,7 +233,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       drawSkyPlot();
   
       // Update the sky plot whenever satellites data, histories, or darkMode change
-    }, [mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode]); //redraw if data changes
+    }, [mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode, showLabels]); //redraw if data changes
   
     return (
       <svg ref={svgRef}></svg>
