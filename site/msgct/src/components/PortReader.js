@@ -53,7 +53,8 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
   };
 
   // Function to process each line as it arrives
-  const processLine = (line) => {
+  const processLine = useCallback(
+    (line) => {
     if (
       line.startsWith('$GPGSV') ||
       line.startsWith('$GLGSV') ||
@@ -113,7 +114,7 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
         onPositionUpdate(positionInfo);
       }
     }
-  };
+  }, [setSerialTableData, setSelectedSatellites, onPositionUpdate, positionSource]);
 
   // Function to handle port disconnection
   const handlePortDisconnect = useCallback(async () => {
@@ -264,7 +265,7 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
         console.error('Error during cleanup:', error);
       });
     };
-  }, [handlePortDisconnect, portInfo]);
+  }, [handlePortDisconnect, processLine, portInfo]);
 
   return (
     <Box sx={{ mt: 4 }}>
