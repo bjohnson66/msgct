@@ -369,12 +369,12 @@ function App() {
           computedSatellites = mgnssAlmanacDataGlobal[constellation]
             .map((satellite) => {
               const ecefPosition = calculateSatellitePosition(satellite, currentTimeGPST);
-              const { elevation, azimuth } = calculateElevationAzimuth(
+              const { elevation, azimuth, snr } = calculateElevationAzimuth(
                 ecefPosition,
                 userPositionState
               );
               const health = satellite.Health;
-              return { ID: satellite.ID, elevation, azimuth, health };
+              return { ID: satellite.ID, elevation, azimuth, snr, health };
             })
             .filter((sat) => sat.elevation > MASK_ANGLE);
         } else {
@@ -391,13 +391,13 @@ function App() {
                 return null; // Skip satellite if position could not be calculated
               }
   
-              const { elevation, azimuth } = calculateElevationAzimuth(
+              const { elevation, azimuth, snr } = calculateElevationAzimuth(
                 ecefPosition,
                 userPositionState
               );
               // Assume satellite is healthy; TLE data does not provide health info
               const health = '000';
-              return { ID: satellite.ID || satellite.Name, elevation, azimuth, health };
+              return { ID: satellite.ID || satellite.Name, elevation, azimuth, snr, health };
             })
             .filter((sat) => sat && sat.elevation > MASK_ANGLE);
         }
@@ -529,15 +529,6 @@ function App() {
             default:
               console.warn(`Unknown constellation: ${constellation}`);
           }
-  
-          // Initialize selectedSatellites for the constellation
-          setSelectedSatellites((prevSelectedSatellites) => ({
-            ...prevSelectedSatellites,
-            [constellation]: data.satellites.reduce((acc, sat) => {
-              acc[sat.ID] = true;
-              return acc;
-            }, {}),
-          }));
         }
       }
     }
@@ -546,13 +537,6 @@ function App() {
     if (!gpsDataGood && qzssGpsBackup.length > 0) {
       console.warn('No GPS data found; using GPS satellites from QZSS almanac.');
       setGpsAlmanacDataGlobal(qzssGpsBackup);
-      setSelectedSatellites((prevSelectedSatellites) => ({
-        ...prevSelectedSatellites,
-        gps: qzssGpsBackup.reduce((acc, sat) => {
-          acc[sat.ID] = true;
-          return acc;
-        }, {}),
-      }));
     }
   
     // Update satellite positions after loading new almanacs
@@ -640,7 +624,7 @@ function App() {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <img src={logo} className="Logo" alt="MSGCT Logo" />
             <Typography variant="h4">
-              Multi-Source GNSS Constellation Tracker
+              MGNSS.live
             </Typography>
           </Box>
           <Typography>Dark Mode:</Typography>

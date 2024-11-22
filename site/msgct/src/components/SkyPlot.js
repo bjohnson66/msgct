@@ -64,8 +64,8 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       // Function to draw the sky plot with updated satellite data
       const drawSkyPlot = () => {
         // Dimensions
-        const width = 500;
-        const height = 500;
+        const width = 550;
+        const height = 550;
         const margin = 40;
         const radius = Math.min(width, height) / 2 - margin;
   
@@ -144,7 +144,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
   
           satellites.forEach((sat) => {
             // Skip if satellite is not selected
-            if (!selectedSatellites[constellation]?.[sat.ID]) {
+            if (selectedSatellites[constellation]?.[sat.ID] === false) {
               return;
             }
   

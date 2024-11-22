@@ -54,7 +54,19 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
             }
 
             const satellites = mgnssRelativePositions[constellation];
-            return satellites.map((satellite) => (
+            return satellites.map((satellite) => {
+              // Determine health status
+              let healthStatus;
+              let healthColor = 'inherit'; // Default color
+
+              if (constellation === 'gps') {
+                healthStatus = satellite.health === "000" || satellite.health === 0 ? "Healthy" : "Unhealthy";
+                healthColor = healthStatus === "Healthy" ? 'green' : 'red';
+              } else {
+                healthStatus = "N/A";
+              }
+
+              return (
               <TableRow key={`${constellation}_${satellite.ID}`}
                 sx={{
                   backgroundColor: getRowColor(constellation),
@@ -65,7 +77,7 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
               >
                 <TableCell>
                   <Checkbox
-                    checked={selectedSatellites[constellation]?.[satellite.ID] || false}
+                    checked={selectedSatellites[constellation]?.[satellite.ID] !== false}
                     onChange={() => handleToggle(constellation, satellite.ID)}
                     inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
                   />
@@ -76,16 +88,17 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
                 <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
                 <TableCell align="right">{satellite.snr ? satellite.snr.toFixed(2) : 'N/A'}</TableCell>
                 <TableCell
-                  align="right"
-                  sx={{
-                    color: satellite.health === "000" ? 'green' : 'red',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {satellite.health === "000" ? "Healthy" : "Unhealthy"}
+                    align="right"
+                    sx={{
+                      color: healthColor,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {healthStatus}
                 </TableCell>
               </TableRow>
-            ));
+              );
+            });
           })}
         </TableBody>
       </Table>
