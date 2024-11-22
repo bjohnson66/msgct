@@ -1,8 +1,11 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Checkbox } from '@mui/material';
-import { pink } from '@mui/material/colors';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Checkbox, useTheme } from '@mui/material';
+import { COLORS, getColor } from '../utils/colors';
 
 function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, selectedSatellites, setSelectedSatellites }) {
+  const theme = useTheme(); // Get the current theme
+  const isDarkMode = !(theme.palette.mode === 'dark'); // Check if dark mode is active (flipped for table readability)
+
   const handleToggle = (constellation, satID) => {
     setSelectedSatellites((prevSelected) => ({
       ...prevSelected,
@@ -16,15 +19,15 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
   const getRowColor = (constellation) => {
     switch (constellation) {
       case 'gps':
-        return ''; // default
+        return getColor(COLORS.limeGreen, isDarkMode); // GPS is lime green
       case 'qzss':
-        return '#e3f2fd'; // light blue
+        return getColor(COLORS.purple, isDarkMode); // QZSS is purple
       case 'galileo':
-        return '#e1f5fe'; // very light blue
+        return getColor(COLORS.cyan, isDarkMode); // Galileo is cyan
       case 'glonass':
-        return pink[50];
+        return getColor(COLORS.pink, isDarkMode); // GLONASS is pink
       case 'beidou':
-        return '#ffebee'; // very light red
+        return getColor(COLORS.yellow, isDarkMode); // BeiDou is red
       default:
         return '';
     }
@@ -52,7 +55,14 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
 
             const satellites = mgnssRelativePositions[constellation];
             return satellites.map((satellite) => (
-              <TableRow key={`${constellation}_${satellite.ID}`} sx={{ backgroundColor: getRowColor(constellation) }}>
+              <TableRow key={`${constellation}_${satellite.ID}`}
+                sx={{
+                  backgroundColor: getRowColor(constellation),
+                  '&:hover': {
+                    backgroundColor: `${getRowColor(constellation)}CC`, // Slightly darker on hover
+                  },
+                }}
+              >
                 <TableCell>
                   <Checkbox
                     checked={selectedSatellites[constellation]?.[satellite.ID] || false}

@@ -1,9 +1,12 @@
 import React from 'react';
-import { FormGroup, FormControlLabel, Checkbox, Box } from '@mui/material';
-import { pink } from '@mui/material/colors';
+import { FormGroup, FormControlLabel, Checkbox, Box, useTheme } from '@mui/material';
+import { COLORS, getColor } from '../utils/colors';
 
 
 function SelectSVsOfInterest({ onSelectionChange }) {
+    const theme = useTheme(); // Get the current theme
+    const isDarkMode = theme.palette.mode === 'dark'; // Check if dark mode is active
+
     const [checked, setChecked] = React.useState({
       gps: true,
       ca: true,
@@ -61,6 +64,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
               checked={checked.gps}
               indeterminate={isIndeterminate && checked.gps}
               onChange={handleChangeGPS}
+              sx={{
+                color: getColor(COLORS.gray, isDarkMode),
+                '&.Mui-checked': {
+                  color: getColor(COLORS.gray, isDarkMode),
+                },
+              }}
             />
           }
         />
@@ -74,7 +83,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
                 checked={checked.ca}
                 onChange={handleChangeCodeType}
                 name="ca"
-                color="primary"
+                sx={{
+                  color: getColor(COLORS.red, isDarkMode),
+                  '&.Mui-checked': {
+                    color: getColor(COLORS.red, isDarkMode),
+                  },
+                }}
               />
             }
           />
@@ -85,7 +99,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
                 checked={checked.p}
                 onChange={handleChangeCodeType}
                 name="p"
-                color="warning"
+                sx={{
+                  color: getColor(COLORS.blue, isDarkMode),
+                  '&.Mui-checked': {
+                    color: getColor(COLORS.blue, isDarkMode),
+                  },
+                }}
               />
             }
           />
@@ -96,7 +115,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
                 checked={checked.other}
                 onChange={handleChangeCodeType}
                 name="other"
-                color="success"
+                sx={{
+                  color: getColor(COLORS.limeGreen, isDarkMode),
+                  '&.Mui-checked': {
+                    color: getColor(COLORS.limeGreen, isDarkMode),
+                  },
+                }}
               />
             }
           />
@@ -110,7 +134,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
               checked={checked.qzss}
               onChange={handleChangeConstellation}
               name="qzss"
-              color="secondary"
+              sx={{
+                color: getColor(COLORS.purple, isDarkMode),
+                '&.Mui-checked': {
+                  color: getColor(COLORS.purple, isDarkMode),
+                },
+              }}
             />
           }
         />
@@ -121,7 +150,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
               checked={checked.galileo}
               onChange={handleChangeConstellation}
               name="galileo"
-              color="info"
+              sx={{
+                color: getColor(COLORS.cyan, isDarkMode),
+                '&.Mui-checked': {
+                  color: getColor(COLORS.cyan, isDarkMode),
+                },
+              }}
             />
           }
         />
@@ -133,9 +167,9 @@ function SelectSVsOfInterest({ onSelectionChange }) {
               onChange={handleChangeConstellation}
               name="glonass"
               sx={{
-                color: pink[800],
+                color: getColor(COLORS.pink, isDarkMode),
                 '&.Mui-checked': {
-                  color: pink[600],
+                  color: getColor(COLORS.pink, isDarkMode),
                 },
               }}
             />
@@ -148,7 +182,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
               checked={checked.beidou}
               onChange={handleChangeConstellation}
               name="beidou"
-              color="error"
+              sx={{
+                color: getColor(COLORS.yellow, isDarkMode),
+                '&.Mui-checked': {
+                  color: getColor(COLORS.yellow, isDarkMode),
+                },
+              }}
             />
           }
         />

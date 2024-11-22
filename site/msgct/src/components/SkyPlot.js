@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-import { pink } from '@mui/material/colors';
+import { COLORS, getColor } from '../utils/colors';
+
 
 function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode }) {
     const svgRef = useRef(null);
@@ -10,17 +11,19 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       const circleColor = darkMode ? '#ffffff' : '#000000'; // White in dark mode, black in light mode
       const lineColor = darkMode ? '#aaaaaa' : '#666666';   // Light gray in dark mode, darker in light mode
       const textColor = darkMode ? '#ffffff' : '#000000';   // White in dark mode, black in light mode
-      const tailColor = darkMode ? 'lightblue' : 'blue';    // Light blue in dark mode, blue in light mode
   
-      // Constellation color mapping
-      const constellationColors = {
-        gps: darkMode ? 'yellow' : 'red',
-        qzss: '#1e88e5',       // Blue
-        galileo: '#039be5',    // Light blue
-        glonass: pink[500],    // Pink
-        beidou: '#e53935',     // Red
+      // Function to get the color for a satellite for each constellation
+      const getSatelliteColor = (constellation) => {
+        switch (constellation) {
+          case 'gps': return getColor(COLORS.limeGreen, darkMode);
+          case 'qzss': return getColor(COLORS.purple, darkMode);
+          case 'galileo': return getColor(COLORS.cyan, darkMode);
+          case 'glonass': return getColor(COLORS.pink, darkMode);
+          case 'beidou': return getColor(COLORS.yellow, darkMode);
+          default: return getColor(COLORS.gray, darkMode); // Default color for undefined constellations
+        }
       };
-
+      
       // Function to draw the sky plot with updated satellite data
       const drawSkyPlot = () => {
         // Dimensions
@@ -116,7 +119,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
             const y = Math.sin(azRad) * elevRad;
   
             // Get the color for the constellation
-            const satelliteColor = constellationColors[constellation] || (darkMode ? 'yellow' : 'red');
+            const satelliteColor = getSatelliteColor(constellation);
   
             // Draw tail if history exists
             const history = satelliteHistories[constellation]?.[ID];
@@ -147,7 +150,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
                   .datum(segment)
                   .attr('d', lineGenerator)
                   .attr('fill', 'none')
-                  .attr('stroke', tailColor)
+                  .attr('stroke', satelliteColor)
                   .attr('stroke-width', 1)
                   .attr('stroke-opacity', opacity);
               }
