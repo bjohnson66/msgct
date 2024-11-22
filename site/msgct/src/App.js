@@ -246,6 +246,8 @@ function App() {
     if (!useCurrentTime) {
       currentTimeGPST  = manualGPST;
     }
+    const currentTimeUTC = useCurrentTime? Date.now() / 1000 : currentTimeGPST + UTC_GPST_OFFSET + UNIX_GPS_EPOCH_DIFF;
+
 
     //We need to make sure that time is properly accounting for GPST week and GPST ToW
     //This line means that currentTime is the number of seconds since the GPS week that the almanac is from
@@ -255,8 +257,6 @@ function App() {
 
     // ToW may roll over, so ensure it's bounded within a single week (0 to 604800 seconds)
     currentTimeGPST  = currentTimeGPST  % GPS_SEC_IN_WEEK;
-
-    const currentTimeUTC = Date.now() / 1000;
 
     return { currentTimeGPST, currentTimeUTC };
   }, [useCurrentTime, manualGPST, gpsWeekNumber]);
