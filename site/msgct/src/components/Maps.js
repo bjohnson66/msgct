@@ -26,16 +26,24 @@ const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosit
   // Update the map position based on the selected position source
   useEffect(() => {
     if (positionSource === 'manual') {
-      setCurrentPosition(manualPosition);
+      setCurrentPosition({
+        lat: manualPosition.lat || 0,
+        lon: manualPosition.lon || 0,
+        alt: manualPosition.alt || 0,
+      });
     } else if (positionSource === 'receiver') {
-      setCurrentPosition(receiverPosition);
+      setCurrentPosition({
+        lat: receiverPosition.lat || 0,
+        lon: receiverPosition.lon || 0,
+        alt: receiverPosition.alt || 0,
+      });
     } else if (positionSource === 'device' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, altitude } = position.coords;
           setCurrentPosition({
-            lat: latitude,
-            lon: longitude,
+            lat: latitude || 0,
+            lon: longitude || 0,
             alt: altitude || 0,
           });
         },
