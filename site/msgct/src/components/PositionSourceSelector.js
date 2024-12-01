@@ -48,6 +48,37 @@ function PositionSourceSelector({
         <RadioGroup value={positionSource} onChange={onPositionSourceChange}>
           <FormControlLabel value="device" control={<Radio />} label="Use Device Position" />
           <FormControlLabel value="receiver" control={<Radio />} label="Use Connected Receiver Position" />
+          {positionSource === 'receiver' && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body1">Current Receiver Position:</Typography>
+              <TextField
+                label="Latitude"
+                type="number"
+                value={receiverPosition.lat || ''}
+                InputProps={{
+                  readOnly: true,
+                }}
+                sx={{ mr: 2 }}
+              />
+              <TextField
+                label="Longitude"
+                type="number"
+                value={receiverPosition.lon || ''}
+                InputProps={{
+                  readOnly: true,
+                }}
+                sx={{ mr: 2 }}
+              />
+              <TextField
+                label="Altitude"
+                type="number"
+                value={receiverPosition.alt || ''}
+                InputProps={{
+                  readOnly: true,
+                }}
+              />
+            </Box>
+          )}
           <FormControlLabel value="manual" control={<Radio />} label="Manually Enter Position" />
         </RadioGroup>
       </FormControl>
