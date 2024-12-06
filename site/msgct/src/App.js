@@ -41,7 +41,7 @@ import GPSSatelliteTable from './components/GPSSatelliteTable';
 import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
-import { fetchAlmanacByFilename } from './utils/fetchData';
+import { fetchAlmanacByFilename, fetchBlockByFilename } from './utils/fetchData';
 import {calculateSatellitePosition,calculateElevationAzimuth, calculateSatellitePositionFromTLE,} from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
@@ -174,8 +174,10 @@ function App() {
   const [showLabels, setShowLabels] = useState(true);
   const [selectedConstellations, setSelectedConstellations] = useState({
     gps: true,
-    ca: true,
-    p: true,
+    IIR: true,
+    IIRM: true,
+    IIF: true,
+    III: true,
     other: true,
     qzss: true,
     galileo: true,
@@ -364,7 +366,32 @@ function App() {
       if (selectedConstellations[constellation] && mgnssAlmanacDataGlobal[constellation].length > 0) {
         let computedSatellites;
   
-        if (constellation === 'gps' || constellation === 'qzss') {
+        if (constellation === 'gps') {
+          computedSatellites = mgnssAlmanacDataGlobal.gps
+            .filter((satellite) => {
+              const blockType = satellite.BlockType; // 'IIR', 'IIR-M', 'IIF', or 'III'
+
+              // Check if this block type is currently selected
+              if (blockType === 'IIR' && !selectedConstellations.IIR) return false;
+              if (blockType === 'IIRM' && !selectedConstellations.IIRM) return false;
+              if (blockType === 'IIF' && !selectedConstellations.IIF) return false;
+              if (blockType === 'III' && !selectedConstellations.III) return false;
+              if (blockType === 'other' && !selectedConstellations.other) return false;
+
+              return true;
+            })
+            .map((satellite) => {
+              const ecefPosition = calculateSatellitePosition(satellite, currentTimeGPST);
+              const { elevation, azimuth, snr } = calculateElevationAzimuth(
+                ecefPosition,
+                userPositionState
+              );
+              const health = satellite.Health;
+              return { ID: satellite.ID, elevation, azimuth, snr, health };
+            })
+            .filter((sat) => sat.elevation > MASK_ANGLE);
+        }
+        else if (constellation === 'qzss') {
           // Use existing calculateSatellitePosition function
           computedSatellites = mgnssAlmanacDataGlobal[constellation]
             .map((satellite) => {
@@ -377,7 +404,8 @@ function App() {
               return { ID: satellite.ID, elevation, azimuth, snr, health };
             })
             .filter((sat) => sat.elevation > MASK_ANGLE);
-        } else {
+        } 
+         else {
           // For other constellations, use TLE-based calculation
           computedSatellites = mgnssAlmanacDataGlobal[constellation]
             .map((satellite) => {
@@ -493,6 +521,7 @@ function App() {
         if (data) {
           switch (constellation) {
             case 'gps':
+              const block = await fetchBlockByFilename(filename)
               setGpsWeekNumber(data.week); // Set GPS week number
               setGpsAlmanacDataGlobal(data.satellites);
               gpsDataGood = true;

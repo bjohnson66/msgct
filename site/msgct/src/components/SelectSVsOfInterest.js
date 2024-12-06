@@ -74,57 +74,89 @@ function SelectSVsOfInterest({ onSelectionChange }) {
           }
         />
   
-        {/* Child Checkboxes (C/A, P, or Other) */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', ml: 3 }}>
-          <FormControlLabel
-            label="C/A"
-            control={
-              <Checkbox
-                checked={checked.ca}
-                onChange={handleChangeCodeType}
-                name="ca"
-                sx={{
-                  color: getColor(COLORS.red, isDarkMode),
-                  '&.Mui-checked': {
-                    color: getColor(COLORS.red, isDarkMode),
-                  },
-                }}
-              />
-            }
-          />
-          <FormControlLabel
-            label="P"
-            control={
-              <Checkbox
-                checked={checked.p}
-                onChange={handleChangeCodeType}
-                name="p"
-                sx={{
-                  color: getColor(COLORS.blue, isDarkMode),
-                  '&.Mui-checked': {
-                    color: getColor(COLORS.blue, isDarkMode),
-                  },
-                }}
-              />
-            }
-          />
-          <FormControlLabel
-            label="Other"
-            control={
-              <Checkbox
-                checked={checked.other}
-                onChange={handleChangeCodeType}
-                name="other"
-                sx={{
-                  color: getColor(COLORS.limeGreen, isDarkMode),
-                  '&.Mui-checked': {
-                    color: getColor(COLORS.limeGreen, isDarkMode),
-                  },
-                }}
-              />
-            }
-          />
-        </Box>
+        {/* Child Checkboxes (IIR, IIR-M, IIF, III) */}
+  <Box sx={{ display: 'flex', flexDirection: 'column', ml: 3 }}>
+    <FormControlLabel
+      label="IIR"
+      control={
+        <Checkbox
+          checked={checked.IIR}
+          onChange={handleChangeCodeType}
+          name="IIR"
+          sx={{
+            color: getColor(COLORS.red, isDarkMode),
+            '&.Mui-checked': {
+              color: getColor(COLORS.red, isDarkMode),
+            },
+          }}
+        />
+      }
+    />
+    <FormControlLabel
+      label="IIR-M"
+      control={
+        <Checkbox
+          checked={checked.iirm}
+          onChange={handleChangeCodeType}
+          name="IIRM"
+          sx={{
+            color: getColor(COLORS.blue, isDarkMode),
+            '&.Mui-checked': {
+              color: getColor(COLORS.blue, isDarkMode),
+            },
+          }}
+        />
+      }
+    />
+    <FormControlLabel
+      label="IIF"
+      control={
+        <Checkbox
+          checked={checked.iif}
+          onChange={handleChangeCodeType}
+          name="IIF"
+          sx={{
+            color: getColor(COLORS.limeGreen, isDarkMode),
+            '&.Mui-checked': {
+              color: getColor(COLORS.limeGreen, isDarkMode),
+            },
+          }}
+        />
+      }
+    />
+    <FormControlLabel
+      label="III"
+      control={
+        <Checkbox
+          checked={checked.iii}
+          onChange={handleChangeCodeType}
+          name="III"
+          sx={{
+            color: getColor(COLORS.purple, isDarkMode),
+            '&.Mui-checked': {
+              color: getColor(COLORS.purple, isDarkMode),
+            },
+          }}
+        />
+      }
+    />
+    <FormControlLabel
+      label="other"
+      control={
+        <Checkbox
+          checked={checked.other}
+          onChange={handleChangeCodeType}
+          name="other"
+          sx={{
+            color: getColor(COLORS.yellow, isDarkMode),
+            '&.Mui-checked': {
+              color: getColor(COLORS.yellow, isDarkMode),
+            },
+          }}
+        />
+      }
+    />
+  </Box>
   
         {/* Other Constellations */}
         <FormControlLabel
