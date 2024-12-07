@@ -9,8 +9,10 @@ function SelectSVsOfInterest({ onSelectionChange }) {
 
     const [checked, setChecked] = React.useState({
       gps: true,
-      ca: true,
-      p: true,
+      iir: true,
+      iirm: true,
+      iif: true,
+      iii: true,
       other: true,
       qzss: true,
       galileo: true,
@@ -20,16 +22,22 @@ function SelectSVsOfInterest({ onSelectionChange }) {
   
     // Handle changes for the GPS parent checkbox
     const handleChangeGPS = (event) => {
+      const isChecked = event.target.checked;
+    
       const newChecked = {
         ...checked,
-        gps: event.target.checked,
-        ca: event.target.checked,
-        p: event.target.checked,
-        other: event.target.checked,
+        gps: isChecked,
+        iir: isChecked,
+        iirm: isChecked,
+        iif: isChecked,
+        iii: isChecked,
+        other: isChecked,
       };
+    
       setChecked(newChecked);
-      onSelectionChange(newChecked); // Notify parent
+      onSelectionChange(newChecked);
     };
+    
   
     // Handle changes for individual child checkboxes (GPS Code Types)
     const handleChangeCodeType = (event) => {
@@ -37,9 +45,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
         ...checked,
         [event.target.name]: event.target.checked,
       };
+    
+      // Do NOT update `gps` directly here
       setChecked(newChecked);
-      onSelectionChange(newChecked); // Notify parent
+      onSelectionChange(newChecked);
     };
+    
   
     // Handle changes for individual constellations (other than GPS)
     const handleChangeConstellation = (event) => {
@@ -52,7 +63,12 @@ function SelectSVsOfInterest({ onSelectionChange }) {
     };
   
     // Determine if the GPS checkbox should be indeterminate
-    const isIndeterminate = checked.ca !== checked.p || checked.p !== checked.other;
+    const isIndeterminate =
+    !(
+      checked.iir && checked.iirm && checked.iif && checked.iii && checked.other
+    ) && (
+      checked.iir || checked.iirm || checked.iif || checked.iii || checked.other
+    );  
   
     return (
       <FormGroup>

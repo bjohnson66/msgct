@@ -174,16 +174,18 @@ function App() {
   const [showLabels, setShowLabels] = useState(true);
   const [selectedConstellations, setSelectedConstellations] = useState({
     gps: true,
-    iir: true,
-    iirm: true,
-    iif: true,
-    iii: true,
-    other: true,
     qzss: true,
     galileo: true,
     glonass: true,
     beidou: true,
   });
+  const [selectedGpsBlockTypes, setSelectedGpsBlockTypes] = useState({
+    iir: true,
+    iirm: true,
+    iif: true,
+    iii: true,
+    other: true,
+  });  
   const [satelliteHistories, setSatelliteHistories] = useState({});
   const [darkMode, setDarkMode] = useState(false);
   const [availableAlmanacs, setAvailableAlmanacs] = useState({
@@ -369,16 +371,9 @@ function App() {
         if (constellation === 'gps') {
           computedSatellites = mgnssAlmanacDataGlobal.gps
             .filter((satellite) => {
-              const blockType = satellite.BlockType; // 'IIR', 'IIR-M', 'IIF', or 'III'
-
-              // Check if this block type is currently selected
-              if (blockType === 'IIR' && !selectedConstellations.iir) return false;
-              if (blockType === 'IIR-M' && !selectedConstellations.iirm) return false;
-              if (blockType === 'IIF' && !selectedConstellations.iif) return false;
-              if (blockType === 'III' && !selectedConstellations.iii) return false;
-              if (blockType === 'other' && !selectedConstellations.other) return false;
-
-              return true;
+              const blockType = satellite.BlockType;
+              
+              return selectedGpsBlockTypes[blockType];
             })
             .map((satellite) => {
               const ecefPosition = calculateSatellitePosition(satellite, currentTimeGPST);
@@ -390,7 +385,7 @@ function App() {
               return { ID: satellite.ID, elevation, azimuth, snr, health };
             })
             .filter((sat) => sat.elevation > MASK_ANGLE);
-        }
+        }                     
         else if (constellation === 'qzss') {
           // Use existing calculateSatellitePosition function
           computedSatellites = mgnssAlmanacDataGlobal[constellation]
@@ -495,10 +490,13 @@ function App() {
                 // Fetch gps_block_type_data if processing GPS
                 if (constellation === "gps") {
                     const response_gps_block_type = await fetch('/sv_data/gps_block_type_data/manifest.json');
-                    console.log('Fetching manifest for gps_block_type...');
                     const filenames_gps_block_type = await response_gps_block_type.json();
-                    console.log('Filenames:', filenames_gps_block_type);
 
+                    // Process gps_block_type_data and store as needed
+                    newAvailableAlmanacs['gps_block_type_data'] = filenames_gps_block_type.map((filename) => {
+                        const timestamp = filename.split('_').slice(2, 4).join('_').replace('.json', '');
+                        return { filename, timestamp };
+                    });
                 }
             } catch (error) {
                 console.error(`Failed to load manifest for ${constellation}:`, error);
@@ -533,14 +531,32 @@ function App() {
         if (data) {
           switch (constellation) {
             case 'gps':
-              const block = await fetchBlockByFilename(filename)
-              console.log(`Block data fetched for ${block}:`, block);
-              console.log(`Block data fetched for ${data}:`, data);
               setGpsWeekNumber(data.week); // Set GPS week number
-              setGpsAlmanacDataGlobal(data.satellites);
+
+              // Fetch block type data
+              const blockTypeFilename = 'gps_block_type_20241118_195501.json'; // Example filename
+              const blockTypeData = await fetchBlockByFilename(blockTypeFilename);
+
+              // Transform block type data into a lookup table
+              const blockTypeLookup = {};
+              blockTypeData.forEach((entry) => {
+                blockTypeLookup[parseInt(entry.prn, 10).toString()] = entry.block_type; // Convert to string without leading zeros
+              });
+
+              // Map block types to satellites
+              const satellitesWithBlockType = data.satellites.map((satellite) => {
+                const normalizedID = parseInt(satellite.ID, 10).toString(); // Remove leading zeros
+                const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other'; // Fallback to 'other' if undefined
+                return {
+                  ...satellite,
+                  BlockType: blockType,
+                };
+              });
+              
+
+              setGpsAlmanacDataGlobal(satellitesWithBlockType);
               gpsDataGood = true;
               break;
-  
             case 'qzss':
               // Extract GPS satellites as a backup if GPS data is missing
               qzssGpsBackup = data.satellites.filter((satellite) => {
@@ -736,7 +752,18 @@ function App() {
               <Typography variant="h6" gutterBottom>
                 Select SVs of Interest
               </Typography>
-              <SelectSVsOfInterest onSelectionChange={handleConstellationSelectionChange} />
+              <SelectSVsOfInterest
+                onSelectionChange={(newChecked) => {
+                  setSelectedConstellations(newChecked);
+                  setSelectedGpsBlockTypes({
+                    iir: newChecked.iir,
+                    iirm: newChecked.iirm,
+                    iif: newChecked.iif,
+                    iii: newChecked.iii,
+                    other: newChecked.other,
+                  });
+                }}
+              /> 
             </Grid>
           </Grid>
           <Grid item xs={11} md={8}>
@@ -772,3 +799,4 @@ function App() {
 }
 
 export default App;
+
