@@ -6,7 +6,7 @@ import { act } from 'react-dom/test-utils';
 describe('App Component', () => {
   it('renders the app without crashing', () => {
     render(<App />);
-    const titleElement = screen.getByText(/Multi-Source GNSS Constellation Tracker/i);
+    const titleElement = screen.getByText(/MGNSS\.live/i);
     expect(titleElement).toBeInTheDocument();
   });
 
