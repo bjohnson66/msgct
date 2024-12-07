@@ -80,9 +80,9 @@ function SelectSVsOfInterest({ onSelectionChange }) {
       label="IIR"
       control={
         <Checkbox
-          checked={checked.IIR}
+          checked={checked.iir}
           onChange={handleChangeCodeType}
-          name="IIR"
+          name="iir"
           sx={{
             color: getColor(COLORS.red, isDarkMode),
             '&.Mui-checked': {
@@ -98,7 +98,7 @@ function SelectSVsOfInterest({ onSelectionChange }) {
         <Checkbox
           checked={checked.iirm}
           onChange={handleChangeCodeType}
-          name="IIRM"
+          name="iirm"
           sx={{
             color: getColor(COLORS.blue, isDarkMode),
             '&.Mui-checked': {
@@ -114,7 +114,7 @@ function SelectSVsOfInterest({ onSelectionChange }) {
         <Checkbox
           checked={checked.iif}
           onChange={handleChangeCodeType}
-          name="IIF"
+          name="iif"
           sx={{
             color: getColor(COLORS.limeGreen, isDarkMode),
             '&.Mui-checked': {
@@ -130,7 +130,7 @@ function SelectSVsOfInterest({ onSelectionChange }) {
         <Checkbox
           checked={checked.iii}
           onChange={handleChangeCodeType}
-          name="III"
+          name="iii"
           sx={{
             color: getColor(COLORS.purple, isDarkMode),
             '&.Mui-checked': {

@@ -174,10 +174,10 @@ function App() {
   const [showLabels, setShowLabels] = useState(true);
   const [selectedConstellations, setSelectedConstellations] = useState({
     gps: true,
-    IIR: true,
-    IIRM: true,
-    IIF: true,
-    III: true,
+    iir: true,
+    iirm: true,
+    iif: true,
+    iii: true,
     other: true,
     qzss: true,
     galileo: true,
@@ -372,10 +372,10 @@ function App() {
               const blockType = satellite.BlockType; // 'IIR', 'IIR-M', 'IIF', or 'III'
 
               // Check if this block type is currently selected
-              if (blockType === 'IIR' && !selectedConstellations.IIR) return false;
-              if (blockType === 'IIRM' && !selectedConstellations.IIRM) return false;
-              if (blockType === 'IIF' && !selectedConstellations.IIF) return false;
-              if (blockType === 'III' && !selectedConstellations.III) return false;
+              if (blockType === 'IIR' && !selectedConstellations.iir) return false;
+              if (blockType === 'IIR-M' && !selectedConstellations.iirm) return false;
+              if (blockType === 'IIF' && !selectedConstellations.iif) return false;
+              if (blockType === 'III' && !selectedConstellations.iii) return false;
               if (blockType === 'other' && !selectedConstellations.other) return false;
 
               return true;
@@ -477,36 +477,48 @@ function App() {
 
   useEffect(() => {
     const loadAllManifests = async () => {
-      const constellations = ['gps', 'qzss', 'galileo', 'beidou', 'glonass'];
-      const newAvailableAlmanacs = {};
-  
-      for (const constellation of constellations) {
-        try {
-          const response = await fetch(`/sv_data/${constellation}_data/manifest.json`);
-          const filenames = await response.json();
-          // Extract timestamps from filenames and store them
-          newAvailableAlmanacs[constellation] = filenames.map((filename) => {
-            const timestamp = parseInt(filename.split('_')[1].split('.')[0], 10);
-            return { filename, timestamp };
-          });
-        } catch (error) {
-          console.error(`Failed to load manifest for ${constellation}:`, error);
-          newAvailableAlmanacs[constellation] = [];
+        const constellations = ['gps', 'qzss', 'galileo', 'beidou', 'glonass'];
+        const newAvailableAlmanacs = {};
+
+        for (const constellation of constellations) {
+            try {
+                console.log(`Fetching manifest for ${constellation}...`);
+                const response = await fetch(`/sv_data/${constellation}_data/manifest.json`);
+                const filenames = await response.json();
+
+                // Extract timestamps from filenames and store them
+                newAvailableAlmanacs[constellation] = filenames.map((filename) => {
+                    const timestamp = parseInt(filename.split('_')[1].split('.')[0], 10);
+                    return { filename, timestamp };
+                });
+
+                // Fetch gps_block_type_data if processing GPS
+                if (constellation === "gps") {
+                    const response_gps_block_type = await fetch('/sv_data/gps_block_type_data/manifest.json');
+                    console.log('Fetching manifest for gps_block_type...');
+                    const filenames_gps_block_type = await response_gps_block_type.json();
+                    console.log('Filenames:', filenames_gps_block_type);
+
+                }
+            } catch (error) {
+                console.error(`Failed to load manifest for ${constellation}:`, error);
+                newAvailableAlmanacs[constellation] = []; 
+            }
         }
-      }
-  
-      setAvailableAlmanacs(newAvailableAlmanacs);
+
+        setAvailableAlmanacs(newAvailableAlmanacs);
     };
-  
+
     loadAllManifests(); // Initial load
-  
+
     // Set up daily manifest reloading
     const manifestInterval = setInterval(loadAllManifests, 24 * 60 * 60 * 1000); // Reload every 24 hours
-  
+
     return () => {
-      clearInterval(manifestInterval); // Cleanup on unmount
+        clearInterval(manifestInterval); // Cleanup on unmount
     };
-  }, []);
+}, []);
+
   
 
   const loadSelectedAlmanacs = useCallback(async (selectedAlmanacs) => {
@@ -522,6 +534,8 @@ function App() {
           switch (constellation) {
             case 'gps':
               const block = await fetchBlockByFilename(filename)
+              console.log(`Block data fetched for ${block}:`, block);
+              console.log(`Block data fetched for ${data}:`, data);
               setGpsWeekNumber(data.week); // Set GPS week number
               setGpsAlmanacDataGlobal(data.satellites);
               gpsDataGood = true;
