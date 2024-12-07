@@ -17,6 +17,7 @@ function PositionSourceSelector({
   manualPosition,
   setManualPosition,
   receiverPosition,
+  receiversSatelliteData
 }) {
   // Handle changes to the manual position inputs
   const handleManualPositionChange = (field) => (event) => {
@@ -138,12 +139,13 @@ function PositionSourceSelector({
           </Box>
         </Box>
       )}
-      {/* Integrate the Maps component */}
+      {/* Pass the receiver satellites data to the map */}
       <Maps
         positionSource={positionSource}
         manualPosition={manualPosition}
-        setManualPosition={setManualPosition} // Allow Maps.js to update manualPosition
+        setManualPosition={setManualPosition}
         receiverPosition={receiverPosition}
+        receiversSatelliteData={receiversSatelliteData} // ADDED
       />
     </Box>
   );

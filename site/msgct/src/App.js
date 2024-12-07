@@ -41,6 +41,7 @@ import GPSSatelliteTable from './components/GPSSatelliteTable';
 import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
+import ReceiverSkyPlot from './components/ReceiverSkyPlot';
 import { fetchAlmanacByFilename, fetchBlockByFilename } from './utils/fetchData';
 import {calculateSatellitePosition,calculateElevationAzimuth, calculateSatellitePositionFromTLE,} from './utils/gpsCalculations';
 import './App.css';
@@ -223,6 +224,9 @@ function App() {
 
   const intervalRef = useRef(null);
 
+  // State to hold satellite data from each connected receiver
+  const [receiversSatelliteData, setReceiversSatelliteData] = useState({});
+
   const handleConstellationSelectionChange = (selection) => {
     setSelectedConstellations(selection);
   };
@@ -251,7 +255,6 @@ function App() {
       currentTimeGPST  = manualGPST;
     }
     const currentTimeUTC = useCurrentTime? Date.now() / 1000 : currentTimeGPST + UTC_GPST_OFFSET + UNIX_GPS_EPOCH_DIFF;
-
 
     //We need to make sure that time is properly accounting for GPST week and GPST ToW
     //This line means that currentTime is the number of seconds since the GPS week that the almanac is from
@@ -296,12 +299,12 @@ function App() {
     const timeStep = 60; // Time step in seconds
     const numberOfSteps = Math.floor(timeWindow / timeStep);
     const newHistories = {};
-  
+
     const { currentTimeGPST, currentTimeUTC } = getCurrentTime();
-  
+
     Object.keys(mgnssAlmanacDataGlobal).forEach((constellation) => {
       if (selectedConstellations[constellation] && mgnssAlmanacDataGlobal[constellation].length > 0) {
-  
+
         for (let i = numberOfSteps; i >= 0; i--) {
           // Calculate time 't' for each step
           let t;
@@ -310,9 +313,9 @@ function App() {
           } else {
             t = currentTimeUTC - i * timeStep;
           }
-  
+
           let computedSatellites;
-  
+
           if (constellation === 'gps' || constellation === 'qzss') {
             computedSatellites = mgnssAlmanacDataGlobal[constellation].map((satellite) => {
               const ecefPosition = calculateSatellitePosition(satellite, t);
@@ -330,7 +333,7 @@ function App() {
                 t
               );
               if (!ecefPosition) {
-                return null; // Skip if position could not be calculated
+                return null;
               }
               const { elevation, azimuth } = calculateElevationAzimuth(
                 ecefPosition,
@@ -339,7 +342,7 @@ function App() {
               return { ID: satellite.ID || satellite.Name, elevation, azimuth, timestamp: t };
             }).filter(sat => sat !== null);
           }
-  
+
           computedSatellites.forEach((sat) => {
             if (!newHistories[constellation]) {
               newHistories[constellation] = {};
@@ -356,18 +359,17 @@ function App() {
         }
       }
     });
-  
+
     setSatelliteHistories(newHistories);
   }, [getCurrentTime, userPositionState, selectedConstellations]);
   
-
   const updateSatellitePositions = useCallback(() => {
     const { currentTimeGPST, currentTimeUTC } = getCurrentTime();
-  
+
     Object.keys(mgnssAlmanacDataGlobal).forEach((constellation) => {
       if (selectedConstellations[constellation] && mgnssAlmanacDataGlobal[constellation].length > 0) {
         let computedSatellites;
-  
+
         if (constellation === 'gps') {
           computedSatellites = mgnssAlmanacDataGlobal.gps
             .filter((satellite) => {
@@ -409,11 +411,11 @@ function App() {
                 satellite.Line2,
                 currentTimeUTC
               );
-  
+
               if (!ecefPosition) {
-                return null; // Skip satellite if position could not be calculated
+                return null;
               }
-  
+
               const { elevation, azimuth, snr } = calculateElevationAzimuth(
                 ecefPosition,
                 userPositionState
@@ -507,23 +509,19 @@ function App() {
         setAvailableAlmanacs(newAvailableAlmanacs);
     };
 
-    loadAllManifests(); // Initial load
-
-    // Set up daily manifest reloading
-    const manifestInterval = setInterval(loadAllManifests, 24 * 60 * 60 * 1000); // Reload every 24 hours
+    loadAllManifests(); 
+    const manifestInterval = setInterval(loadAllManifests, 24 * 60 * 60 * 1000);
 
     return () => {
-        clearInterval(manifestInterval); // Cleanup on unmount
+        clearInterval(manifestInterval);
     };
 }, []);
 
-  
-
   const loadSelectedAlmanacs = useCallback(async (selectedAlmanacs) => {
     const constellations = Object.keys(selectedAlmanacs);
-    let gpsDataGood = false; // Track if valid GPS data has been loaded
-    let qzssGpsBackup = [];  // Temporary storage for GPS PRNs in QZSS
-  
+    let gpsDataGood = false;
+    let qzssGpsBackup = [];
+
     for (const constellation of constellations) {
       const filename = selectedAlmanacs[constellation];
       if (filename) {
@@ -561,30 +559,30 @@ function App() {
               // Extract GPS satellites as a backup if GPS data is missing
               qzssGpsBackup = data.satellites.filter((satellite) => {
                 const idNum = parseInt(satellite.ID, 10);
-                return idNum >= 1 && idNum <= 32; // Keep GPS PRNs (1-32)
+                return idNum >= 1 && idNum <= 32;
               });
   
               // Remove GPS satellites from QZSS data
               data.satellites = data.satellites.filter((satellite) => {
                 const idNum = parseInt(satellite.ID, 10);
-                return !(idNum >= 1 && idNum <= 32); // Exclude GPS PRNs
+                return !(idNum >= 1 && idNum <= 32);
               });
-  
+
               setQzssAlmanacDataGlobal(data.satellites);
               break;
-  
+
             case 'galileo':
               setGalileoAlmanacDataGlobal(data.satellites);
               break;
-  
+
             case 'beidou':
               setBeidouAlmanacDataGlobal(data.satellites);
               break;
-  
+
             case 'glonass':
               setGlonassAlmanacDataGlobal(data.satellites);
               break;
-  
+
             default:
               console.warn(`Unknown constellation: ${constellation}`);
           }
@@ -601,20 +599,20 @@ function App() {
     // Update satellite positions after loading new almanacs
     updateSatellitePositions();
   }, [updateSatellitePositions]);
-  
+
   const selectBestAlmanacs = useCallback(() => {
     const selectedTime = useCurrentTime
       ? Math.floor(Date.now() / 1000)
-      : manualGPST + 315964800 + 18; // Convert GPST to UTC time in seconds
-  
+      : manualGPST + 315964800 + 18;
+
     const newSelectedAlmanacs = {};
-  
+
     Object.keys(availableAlmanacs).forEach((constellation) => {
       const almanacs = availableAlmanacs[constellation];
   
       // Find the almanac file with the closest timestamp not after the selected time
       const suitableAlmanacs = almanacs.filter((almanac) => almanac.timestamp <= selectedTime);
-  
+
       if (suitableAlmanacs.length > 0) {
         const bestAlmanac = suitableAlmanacs.reduce((prev, curr) =>
           curr.timestamp > prev.timestamp ? curr : prev
@@ -628,7 +626,7 @@ function App() {
         console.warn(`No suitable almanac found for ${constellation} at time ${selectedTime}`);
       }
     });
-  
+
     if (Object.keys(newSelectedAlmanacs).length > 0) {
       // Update selected almanacs and load them
       setSelectedAlmanac((prevSelectedAlmanac) => ({
@@ -640,7 +638,6 @@ function App() {
       loadSelectedAlmanacs(newSelectedAlmanacs);
     }
   }, [availableAlmanacs, useCurrentTime, manualGPST, selectedAlmanac, loadSelectedAlmanacs]);
-  
 
   useEffect(() => {
     if (availableAlmanacs && Object.keys(availableAlmanacs).length > 0) {
@@ -661,6 +658,11 @@ function App() {
       mode: darkMode ? 'dark' : 'light',
     },
   });
+
+  // Callback for receiving satellite data from each receiver
+  const handleReceiverSatelliteUpdate = useCallback((portName, data) => {
+    setReceiversSatelliteData(prev => ({ ...prev, [portName]: data }));
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -782,17 +784,37 @@ function App() {
           <Typography variant="h6" gutterBottom>
             User Position Source
           </Typography>
+          {/* Pass receiversSatelliteData to PositionSourceSelector so the map can plot them */}
           <PositionSourceSelector
             positionSource={positionSource}
             onPositionSourceChange={handlePositionSourceChange}
             manualPosition={manualPosition}
             setManualPosition={setManualPosition}
             receiverPosition={userPositionState}
+            receiversSatelliteData={receiversSatelliteData}
           />
         </Grid>
         <Grid item xs={12}>
-          <SerialPortComponent onPositionUpdate={handlePositionUpdate} positionSource={positionSource} />
+          <SerialPortComponent 
+            onPositionUpdate={handlePositionUpdate} 
+            positionSource={positionSource} 
+            onSatelliteDataUpdate={handleReceiverSatelliteUpdate}
+          />
         </Grid>
+
+        {/* Sky Plot for receiver data */}
+        {Object.keys(receiversSatelliteData).length > 0 && (
+          <Grid item xs={12}>
+            <Typography variant="h6" gutterBottom>
+              Live Sky Plot (Receiver-Based)
+            </Typography>
+            <ReceiverSkyPlot
+              receiversSatelliteData={receiversSatelliteData}
+              darkMode={darkMode}
+              showLabels={showLabels}
+            />
+          </Grid>
+        )}
       </Stack>
     </ThemeProvider>
   );

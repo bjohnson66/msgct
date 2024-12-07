@@ -3,7 +3,7 @@ import { Typography, Box, Button, TextField } from '@mui/material';
 import GPSSatelliteTable from './GPSSatelliteTable';
 import { parseGSV, parseGGA } from './NMEAParser';
 
-function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }) {
+function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, onSatelliteDataUpdate }) {
   const [serialData, setSerialData] = useState('');
   const [isPortOpen, setIsPortOpen] = useState(false);
   const [serialTableData, setSerialTableData] = useState({
@@ -32,13 +32,12 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
   const bufferRef = useRef('');
   const readableStreamClosedRef = useRef(null);
 
-  // Function to determine the constellation based on PRN
   const getConstellationFromPRN = (prn) => {
     prn = parseInt(prn, 10);
     if (prn >= 1 && prn <= 32) {
       return 'gps';
     } else if (prn >= 33 && prn <= 64) {
-      return 'sbas'; // Handle SBAS separately
+      return 'sbas';
     } else if (prn >= 65 && prn <= 96) {
       return 'glonass';
     } else if (prn >= 193 && prn <= 199) {
@@ -52,7 +51,6 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
     }
   };
 
-  // Function to process each line as it arrives
   const processLine = useCallback(
     (line) => {
     if (
@@ -61,14 +59,13 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
       line.startsWith('$GAGSV') ||
       line.startsWith('$BDGSV') ||
       line.startsWith('$QZGSV') ||
-      line.startsWith('$GNGSV') // Combined GNSS sentences
+      line.startsWith('$GNGSV')
     ) {
       const satelliteInfo = parseGSV(line);
       if (satelliteInfo && satelliteInfo.length > 0) {
         satelliteInfo.forEach((sat) => {
           const constellation = getConstellationFromPRN(sat.ID);
           if (constellation !== 'unknown') {
-            // Update serialTableData
             setSerialTableData((prevData) => {
               const updatedData = { ...prevData };
               if (!updatedData[constellation]) {
@@ -86,14 +83,13 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
               return updatedData;
             });
 
-            // Update selectedSatellites state
             setSelectedSatellites((prevSelected) => {
               const updatedSelected = { ...prevSelected };
               if (!updatedSelected[constellation]) {
                 updatedSelected[constellation] = {};
               }
               if (!(sat.ID in updatedSelected[constellation])) {
-                updatedSelected[constellation][sat.ID] = true; // Default to true (checked)
+                updatedSelected[constellation][sat.ID] = true;
               }
               return updatedSelected;
             });
@@ -106,7 +102,7 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
       line.startsWith('$GAGGA') ||
       line.startsWith('$BDGGA') ||
       line.startsWith('$QZGGA') ||
-      line.startsWith('$GNGGA') // Combined GNSS sentences
+      line.startsWith('$GNGGA')
     ) {
       const positionInfo = parseGGA(line);
       if (positionInfo && onPositionUpdate && positionSource === 'receiver') {
@@ -116,7 +112,6 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
     }
   }, [setSerialTableData, setSelectedSatellites, onPositionUpdate, positionSource]);
 
-  // Function to handle port disconnection
   const handlePortDisconnect = useCallback(async () => {
     console.log('Serial port disconnected');
     setIsPortOpen(false);
@@ -147,13 +142,11 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
       portInfo.port.removeEventListener('disconnect', handlePortDisconnect);
     }
 
-    // Inform parent component that the port has been disconnected
     if (onDisconnect) {
       onDisconnect(portInfo);
     }
   }, [portInfo, onDisconnect]);
 
-  // Function to disconnect from the serial port
   const handleDisconnect = async () => {
     try {
       await handlePortDisconnect();
@@ -162,13 +155,12 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
     }
   };
 
-  // Start reading from the port when the component mounts
   useEffect(() => {
     const startReading = async () => {
       if (portInfo && portInfo.port) {
         const selectedPort = portInfo.port;
         try {
-          await selectedPort.open({ baudRate: 9600 }); // Open the port with the required baud rate
+          await selectedPort.open({ baudRate: 9600 });
           setIsPortOpen(true);
 
           selectedPort.addEventListener('disconnect', () => {
@@ -193,15 +185,14 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
               while (true) {
                 const { value, done } = await reader.read();
                 if (done) {
-                  break; // Exit the loop when no more data
+                  break;
                 }
                 if (value) {
                   bufferRef.current += value;
-                  setSerialData((prevData) => prevData + value); // Update the serialData text field
+                  setSerialData((prevData) => prevData + value);
 
-                  // Process the buffer to extract complete lines
                   let lines = bufferRef.current.split('\n');
-                  bufferRef.current = lines.pop(); // Save incomplete line for next read
+                  bufferRef.current = lines.pop();
 
                   for (let line of lines) {
                     processLine(line.trim());
@@ -230,7 +221,6 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
 
     startReading();
 
-    // Cleanup on component unmount
     return () => {
       const cleanup = async () => {
         if (portInfo && portInfo.port) {
@@ -267,10 +257,19 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect }
     };
   }, [handlePortDisconnect, processLine, portInfo]);
 
+  useEffect(() => {
+    if (onSatelliteDataUpdate && portInfo.name) {
+      const combinedSats = [];
+      Object.keys(serialTableData).forEach((constellation) => {
+        combinedSats.push(...serialTableData[constellation]);
+      });
+      onSatelliteDataUpdate(portInfo.name, combinedSats);
+    }
+  }, [serialTableData, onSatelliteDataUpdate, portInfo.name]); // ADDED
+
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h6">{portInfo.name}</Typography>
-      {/* Remove Start Reading button */}
       <Button
         variant="contained"
         color="error"
