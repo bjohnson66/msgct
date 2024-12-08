@@ -60,12 +60,6 @@ const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosit
     alt: 0.0,
   });
 
-  // Bounds to cover the entire world
-  const worldBounds = [
-    [-90, -180],
-    [90, 180],
-  ];
-
   // Update the map position based on the selected position source
   useEffect(() => {
     if (positionSource === 'manual') {

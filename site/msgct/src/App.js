@@ -227,10 +227,6 @@ function App() {
   // State to hold satellite data from each connected receiver
   const [receiversSatelliteData, setReceiversSatelliteData] = useState({});
 
-  const handleConstellationSelectionChange = (selection) => {
-    setSelectedConstellations(selection);
-  };
-
   const handlePositionSourceChange = (event) => {
     setPositionSource(event.target.value);
   };
@@ -452,7 +448,7 @@ function App() {
   
     // Call calculateHistories once after all constellations are updated
     calculateHistories();
-  }, [getCurrentTime, userPositionState, selectedConstellations, calculateHistories]);
+  }, [getCurrentTime, userPositionState, selectedConstellations, calculateHistories, selectedGpsBlockTypes]);
 
   useEffect(() => {
     if (intervalRef.current) {
