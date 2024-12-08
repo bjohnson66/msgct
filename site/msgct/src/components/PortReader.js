@@ -107,10 +107,10 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, 
       const positionInfo = parseGGA(line);
       if (positionInfo && onPositionUpdate && positionSource === 'receiver') {
         console.log('Position update:', positionInfo);
-        onPositionUpdate(positionInfo);
+        onPositionUpdate(positionInfo, portInfo.name);
       }
     }
-  }, [setSerialTableData, setSelectedSatellites, onPositionUpdate, positionSource]);
+  }, [setSerialTableData, setSelectedSatellites, onPositionUpdate, positionSource, portInfo.name]);
 
   const handlePortDisconnect = useCallback(async () => {
     console.log('Serial port disconnected');
@@ -265,7 +265,7 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, 
       });
       onSatelliteDataUpdate(portInfo.name, combinedSats);
     }
-  }, [serialTableData, onSatelliteDataUpdate, portInfo.name]); // ADDED
+  }, [serialTableData, onSatelliteDataUpdate, portInfo.name]);
 
   return (
     <Box sx={{ mt: 4 }}>

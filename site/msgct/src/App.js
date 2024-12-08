@@ -227,17 +227,33 @@ function App() {
   // State to hold satellite data from each connected receiver
   const [receiversSatelliteData, setReceiversSatelliteData] = useState({});
 
+  // Holds historical receiver positions
+  const [receiversPositionsData, setReceiversPositionsData] = useState({});
+
   const handlePositionSourceChange = (event) => {
     setPositionSource(event.target.value);
   };
 
-  const handlePositionUpdate = (position) => {
+  const handlePositionUpdate = (position, receiverName) => {
     if (positionSource === 'receiver') {
       console.log('Updating user position from receiver:', position);
       setUserPositionState(position);
     } else {
       console.log('Ignoring receiver position update since positionSource is:', positionSource);
     }
+
+    // Store position in history for receiver
+    setReceiversPositionsData(prev => {
+      const newData = { ...prev };
+      if (!newData[receiverName]) {
+        newData[receiverName] = [];
+      }
+      newData[receiverName].push({
+        ...position,
+        timestamp: Date.now()
+      });
+      return newData;
+    });
   };
 
   const getCurrentTime = useCallback(() => {
@@ -525,29 +541,26 @@ function App() {
         if (data) {
           switch (constellation) {
             case 'gps':
-              setGpsWeekNumber(data.week); // Set GPS week number
-
-              // Fetch block type data
-              const blockTypeFilename = 'gps_block_type_20241118_195501.json'; // Example filename
+              setGpsWeekNumber(data.week); 
+              const blockTypeFilename = 'gps_block_type_20241118_195501.json'; 
               const blockTypeData = await fetchBlockByFilename(blockTypeFilename);
 
               // Transform block type data into a lookup table
               const blockTypeLookup = {};
               blockTypeData.forEach((entry) => {
-                blockTypeLookup[parseInt(entry.prn, 10).toString()] = entry.block_type; // Convert to string without leading zeros
+                blockTypeLookup[parseInt(entry.prn, 10).toString()] = entry.block_type;
               });
 
               // Map block types to satellites
               const satellitesWithBlockType = data.satellites.map((satellite) => {
-                const normalizedID = parseInt(satellite.ID, 10).toString(); // Remove leading zeros
-                const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other'; // Fallback to 'other' if undefined
+                const normalizedID = parseInt(satellite.ID, 10).toString();
+                const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other';
                 return {
                   ...satellite,
                   BlockType: blockType,
                 };
               });
               
-
               setGpsAlmanacDataGlobal(satellitesWithBlockType);
               gpsDataGood = true;
               break;
@@ -606,10 +619,11 @@ function App() {
     Object.keys(availableAlmanacs).forEach((constellation) => {
       const almanacs = availableAlmanacs[constellation];
   
-      // Find the almanac file with the closest timestamp not after the selected time
+      if (!almanacs) return;
+
       const suitableAlmanacs = almanacs.filter((almanac) => almanac.timestamp <= selectedTime);
 
-      if (suitableAlmanacs.length > 0) {
+      if (suitableAlmanacs && suitableAlmanacs.length > 0) {
         const bestAlmanac = suitableAlmanacs.reduce((prev, curr) =>
           curr.timestamp > prev.timestamp ? curr : prev
         );
@@ -788,6 +802,7 @@ function App() {
             setManualPosition={setManualPosition}
             receiverPosition={userPositionState}
             receiversSatelliteData={receiversSatelliteData}
+            receiversPositionsData={receiversPositionsData} 
           />
         </Grid>
         <Grid item xs={12}>
@@ -817,4 +832,3 @@ function App() {
 }
 
 export default App;
-

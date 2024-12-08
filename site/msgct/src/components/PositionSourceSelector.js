@@ -17,7 +17,8 @@ function PositionSourceSelector({
   manualPosition,
   setManualPosition,
   receiverPosition,
-  receiversSatelliteData
+  receiversSatelliteData,
+  receiversPositionsData
 }) {
   // Handle changes to the manual position inputs
   const handleManualPositionChange = (field) => (event) => {
@@ -145,7 +146,7 @@ function PositionSourceSelector({
         manualPosition={manualPosition}
         setManualPosition={setManualPosition}
         receiverPosition={receiverPosition}
-        receiversSatelliteData={receiversSatelliteData} // ADDED
+        receiversPositionsData={receiversPositionsData}
       />
     </Box>
   );
