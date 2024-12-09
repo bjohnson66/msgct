@@ -34,7 +34,7 @@
   ------------------------------------------------------------------------------
 */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {ThemeProvider,createTheme,CssBaseline,Switch,Container,Typography,Box,Stack,Grid,Checkbox,IconButton,TextField,} from '@mui/material';
+import {ThemeProvider,createTheme,CssBaseline,Switch,Container,Typography,Box,Stack,Grid,Checkbox,IconButton,} from '@mui/material';
 import { Helmet } from 'react-helmet';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import GPSSatelliteTable from './components/GPSSatelliteTable';
@@ -46,6 +46,7 @@ import { fetchAlmanacByFilename, fetchBlockByFilename } from './utils/fetchData'
 import {calculateSatellitePosition,calculateElevationAzimuth, calculateSatellitePositionFromTLE,} from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
+import DatePicker from './components/DateTimePicker';
 
 // #ifdef my problems away
 let SkyPlot;
@@ -280,6 +281,21 @@ function App() {
     return { currentTimeGPST, currentTimeUTC };
   }, [useCurrentTime, manualGPST, gpsWeekNumber]);
 
+  const handleDateChange = (date) => {
+    if (!useCurrentTime) {
+      if (date) {
+        const gpsTime = Math.floor(date.getTime() / 1000 - 18 - 315964800);
+        setManualGPST(gpsTime);
+      } else {
+        console.error("Invalid Date Selection");
+      }
+    }
+  };  
+
+  const adjustTime = (minutes) => {
+    setManualGPST((prev) => prev + minutes * 60);
+  };
+
   useEffect(() => {
     if (positionSource === 'device') {
       if (navigator.geolocation) {
@@ -322,6 +338,7 @@ function App() {
           let t;
           if (constellation === 'gps' || constellation === 'qzss') {
             t = currentTimeGPST - i * timeStep;
+            console.log('currentTimeGPST:', currentTimeGPST);
           } else {
             t = currentTimeUTC - i * timeStep;
           }
@@ -747,28 +764,27 @@ function App() {
               onChange={() => setUseCurrentTime(!useCurrentTime)}
             />
             <Typography>Use Current Time</Typography>
+
             {!useCurrentTime && (
               <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-                <IconButton
-                  onClick={() => setManualGPST(manualGPST - 15 * 60)}
-                >
+                {/* Decrease GPST */}
+                <IconButton onClick={() => adjustTime(-15)}>
                   <ArrowDownward />
                 </IconButton>
-                <TextField
-                  label="GPST Time (seconds)"
-                  type="number"
-                  value={manualGPST}
-                  onChange={(e) => setManualGPST(parseFloat(e.target.value))}
+
+                <DatePicker
+                  selectedDate={new Date((manualGPST + 315964800 + 18) * 1000)}
+                  onDateChange={handleDateChange}
                 />
-                <IconButton
-                  onClick={() => setManualGPST(manualGPST + 15 * 60)}
-                >
-                  <ArrowUpward />
-                </IconButton>
+
+              <IconButton onClick={() => adjustTime(15)}>
+                <ArrowUpward />
+              </IconButton>
               </Box>
             )}
           </Box>
         </Grid>
+
       </Container>
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={1}>

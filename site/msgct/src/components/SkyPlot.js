@@ -196,7 +196,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
             }
   
             // Draw satellite point or symbol
-            if (constellation != "gps" || health === "000" || health === 0) {  // Check if satellite is healthy allegedly only GPS has health data in almanac?
+            if (constellation !== "gps" || health === "000" || health === 0) {  // Check if satellite is healthy allegedly only GPS has health data in almanac?
               g.append('circle')
                 .attr('cx', x)
                 .attr('cy', y)
