@@ -3,7 +3,7 @@ import { FormGroup, FormControlLabel, Checkbox, Box, useTheme } from '@mui/mater
 import { COLORS, getColor } from '../utils/colors';
 
 
-function SelectSVsOfInterest({ onSelectionChange }) {
+function SelectSVsOfInterest({ onSelectionChange, onBlockTypeChange }) {
     const theme = useTheme(); // Get the current theme
     const isDarkMode = theme.palette.mode === 'dark'; // Check if dark mode is active
 
@@ -23,7 +23,7 @@ function SelectSVsOfInterest({ onSelectionChange }) {
     // Handle changes for the GPS parent checkbox
     const handleChangeGPS = (event) => {
       const isChecked = event.target.checked;
-    
+
       const newChecked = {
         ...checked,
         gps: isChecked,
@@ -33,9 +33,16 @@ function SelectSVsOfInterest({ onSelectionChange }) {
         iii: isChecked,
         other: isChecked,
       };
-    
+
       setChecked(newChecked);
       onSelectionChange(newChecked);
+      onBlockTypeChange({
+        iir: isChecked,
+        iirm: isChecked,
+        iif: isChecked,
+        iii: isChecked,
+        other: isChecked,
+      });
     };
     
   
@@ -48,7 +55,13 @@ function SelectSVsOfInterest({ onSelectionChange }) {
     
       // Do NOT update `gps` directly here
       setChecked(newChecked);
-      onSelectionChange(newChecked);
+      onBlockTypeChange({
+        iir: newChecked.iir,
+        iirm: newChecked.iirm,
+        iif: newChecked.iif,
+        iii: newChecked.iii,
+        other: newChecked.other,
+      });
     };
     
   

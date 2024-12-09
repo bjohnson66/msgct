@@ -570,7 +570,9 @@ function App() {
       setAvailableAlmanacs((prev) => ({ ...prev, ...newAvailableAlmanacs }));
     };
   
+    //Previous statement declares funciton, this calls function inside the useeffect
     loadAllManifests(); 
+    //Then this statement sets it to run every 24 hours
     const manifestInterval = setInterval(loadAllManifests, 24 * 60 * 60 * 1000);
   
     return () => {
@@ -797,15 +799,11 @@ function App() {
               <SelectSVsOfInterest
                 onSelectionChange={(newChecked) => {
                   setSelectedConstellations(newChecked);
-                  setSelectedGpsBlockTypes({
-                    iir: newChecked.iir,
-                    iirm: newChecked.iirm,
-                    iif: newChecked.iif,
-                    iii: newChecked.iii,
-                    other: newChecked.other,
-                  });
                 }}
-              /> 
+                onBlockTypeChange={(newBlockTypes) => {
+                  setSelectedGpsBlockTypes(newBlockTypes);
+                }}
+              />
             </Grid>
           </Grid>
           <Grid item xs={11} md={8}>
