@@ -7,13 +7,19 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
   const isDarkMode = !(theme.palette.mode === 'dark'); // Check if dark mode is active (flipped for table readability)
 
   const handleToggle = (constellation, satID) => {
-    setSelectedSatellites((prevSelected) => ({
-      ...prevSelected,
-      [constellation]: {
-        ...prevSelected[constellation],
-        [satID]: !prevSelected[constellation][satID],
-      },
-    }));
+    setSelectedSatellites((prevSelected) => {
+      const currentVal = prevSelected[constellation]?.[satID];
+      const effectiveVal = currentVal === undefined ? true : currentVal;
+      const newVal = !effectiveVal; // Flip from true->false, or false->true
+
+      return {
+        ...prevSelected,
+        [constellation]: {
+          ...prevSelected[constellation],
+          [satID]: newVal,
+        },
+      };
+    });
   };
 
   const getRowColor = (constellation) => {
@@ -77,7 +83,7 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
               >
                 <TableCell>
                   <Checkbox
-                    checked={selectedSatellites[constellation]?.[satellite.ID] !== false}
+                    checked={selectedSatellites[constellation]?.[satellite.ID] ?? true}
                     onChange={() => handleToggle(constellation, satellite.ID)}
                     inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
                   />
