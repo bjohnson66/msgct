@@ -384,11 +384,10 @@ function App() {
 
         if (constellation === 'gps') {
           computedSatellites = mgnssAlmanacDataGlobal.gps
-            .filter((satellite) => {
-              const blockType = satellite.BlockType;
-              
-              return selectedGpsBlockTypes[blockType];
-            })
+          .filter((satellite) => {
+            const blockType = satellite.BlockType;
+            return selectedGpsBlockTypes[blockType];
+          })
             .map((satellite) => {
               const ecefPosition = calculateSatellitePosition(satellite, currentTimeGPST);
               const { elevation, azimuth, snr } = calculateElevationAzimuth(
@@ -486,48 +485,99 @@ function App() {
 
   useEffect(() => {
     const loadAllManifests = async () => {
-        const constellations = ['gps', 'qzss', 'galileo', 'beidou', 'glonass'];
-        const newAvailableAlmanacs = {};
-
-        for (const constellation of constellations) {
-            try {
-                console.log(`Fetching manifest for ${constellation}...`);
-                const response = await fetch(`/sv_data/${constellation}_data/manifest.json`);
-                const filenames = await response.json();
-
-                // Extract timestamps from filenames and store them
-                newAvailableAlmanacs[constellation] = filenames.map((filename) => {
-                    const timestamp = parseInt(filename.split('_')[1].split('.')[0], 10);
-                    return { filename, timestamp };
-                });
-
-                // Fetch gps_block_type_data if processing GPS
-                if (constellation === "gps") {
-                    const response_gps_block_type = await fetch('/sv_data/gps_block_type_data/manifest.json');
-                    const filenames_gps_block_type = await response_gps_block_type.json();
-
-                    // Process gps_block_type_data and store as needed
-                    newAvailableAlmanacs['gps_block_type_data'] = filenames_gps_block_type.map((filename) => {
-                        const timestamp = filename.split('_').slice(2, 4).join('_').replace('.json', '');
-                        return { filename, timestamp };
-                    });
-                }
-            } catch (error) {
-                console.error(`Failed to load manifest for ${constellation}:`, error);
-                newAvailableAlmanacs[constellation] = []; 
-            }
+      const constellations = ['gps', 'qzss', 'galileo', 'beidou', 'glonass'];
+      const newAvailableAlmanacs = {};
+  
+      for (const constellation of constellations) {
+        try {
+          //console.log(`Fetching manifest for ${constellation}...`);
+          
+          // Fetch the almanac manifest for each constellation
+          const response = await fetch(`/sv_data/${constellation}_data/manifest.json`);
+          const filenames = await response.json();
+  
+          // Store almanac filenames with timestamps
+          newAvailableAlmanacs[constellation] = filenames.map((filename) => {
+            const timestamp = parseInt(filename.split('_')[1].split('.')[0], 10);
+            return { filename, timestamp };
+          });
+  
+          // If GPS, process GPS-specific block type manifest
+          if (constellation === "gps") {
+            const responseGpsBlockType = await fetch('/sv_data/gps_block_type_data/manifest.json');
+            const filenamesGpsBlockType = await responseGpsBlockType.json();
+  
+            // Extract GPS block type files and timestamps
+            const latestBlockType = filenamesGpsBlockType.reduce((latest, currentFile) => {
+              // Extract YYYYMMDD_HHMMSS from the filename
+              const timestampStr = currentFile.match(/gps_block_type_(\d{8}_\d{6})\.json/);
+              
+              if (timestampStr && timestampStr[1]) {
+                // Convert to a comparable timestamp format
+                const timestamp = new Date(
+                  `${timestampStr[1].slice(0, 4)}-${timestampStr[1].slice(4, 6)}-${timestampStr[1].slice(6, 8)}T${timestampStr[1].slice(9, 11)}:${timestampStr[1].slice(11, 13)}:${timestampStr[1].slice(13, 15)}Z`
+                ).getTime();
+            
+                // Check if this timestamp is the latest
+                return timestamp > latest.timestamp ? { filename: currentFile, timestamp } : latest;
+              }
+            
+              return latest; // Return the previous latest if no match is found
+            }, { filename: '', timestamp: 0 });
+            
+            console.log('Latest GPS Block Type File:', latestBlockType.filename);
+            
+  
+            // Fetch the latest block type file
+            const blockTypeData = await fetchBlockByFilename(latestBlockType.filename);
+  
+            // Create a lookup table for block types
+            const blockTypeLookup = {};
+            blockTypeData.forEach((entry) => {
+              blockTypeLookup[parseInt(entry.prn, 10).toString()] = entry.block_type;
+            });
+  
+            // Fetch the latest GPS almanac file
+            const latestGpsAlmanac = newAvailableAlmanacs.gps.reduce((latest, currentFile) => {
+              return currentFile.timestamp > latest.timestamp ? currentFile : latest;
+            }, { filename: '', timestamp: 0 });
+  
+            console.log('Latest GPS Almanac File:', latestGpsAlmanac.filename);
+  
+            const gpsAlmanacResponse = await fetchAlmanacByFilename(latestGpsAlmanac.filename, "gps");
+            const gpsData = gpsAlmanacResponse || { satellites: [] };
+  
+            // Map block types to GPS satellites
+            const satellitesWithBlockType = gpsData.satellites.map((satellite) => {
+              const normalizedID = parseInt(satellite.ID, 10).toString();
+              const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other';
+              return {
+                ...satellite,
+                BlockType: blockType,
+              };
+            });
+  
+            //console.log('Mapped GPS Satellites:', satellitesWithBlockType);
+  
+            setGpsAlmanacDataGlobal(satellitesWithBlockType);
+          }
+        } catch (error) {
+          console.error(`Failed to load manifest for ${constellation}:`, error);
+          newAvailableAlmanacs[constellation] = []; 
         }
-
-        setAvailableAlmanacs(newAvailableAlmanacs);
+      }
+  
+      setAvailableAlmanacs((prev) => ({ ...prev, ...newAvailableAlmanacs }));
     };
-
+  
     loadAllManifests(); 
     const manifestInterval = setInterval(loadAllManifests, 24 * 60 * 60 * 1000);
-
+  
     return () => {
-        clearInterval(manifestInterval);
+      clearInterval(manifestInterval);
     };
-}, []);
+  }, []);
+  
 
   const loadSelectedAlmanacs = useCallback(async (selectedAlmanacs) => {
     const constellations = Object.keys(selectedAlmanacs);
@@ -542,26 +592,6 @@ function App() {
           switch (constellation) {
             case 'gps':
               setGpsWeekNumber(data.week); 
-              const blockTypeFilename = 'gps_block_type_20241118_195501.json'; 
-              const blockTypeData = await fetchBlockByFilename(blockTypeFilename);
-
-              // Transform block type data into a lookup table
-              const blockTypeLookup = {};
-              blockTypeData.forEach((entry) => {
-                blockTypeLookup[parseInt(entry.prn, 10).toString()] = entry.block_type;
-              });
-
-              // Map block types to satellites
-              const satellitesWithBlockType = data.satellites.map((satellite) => {
-                const normalizedID = parseInt(satellite.ID, 10).toString();
-                const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other';
-                return {
-                  ...satellite,
-                  BlockType: blockType,
-                };
-              });
-              
-              setGpsAlmanacDataGlobal(satellitesWithBlockType);
               gpsDataGood = true;
               break;
             case 'qzss':
@@ -649,7 +679,7 @@ function App() {
     }
   }, [availableAlmanacs, useCurrentTime, manualGPST, selectedAlmanac, loadSelectedAlmanacs]);
 
-  useEffect(() => {
+  useEffect(() => { 
     if (availableAlmanacs && Object.keys(availableAlmanacs).length > 0) {
       selectBestAlmanacs();
     }
