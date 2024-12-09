@@ -308,7 +308,7 @@ function App() {
 
   const calculateHistories = useCallback(() => {
     const timeWindow = 3 * 60 * 60; // 3 hours in seconds
-    const timeStep = 60; // Time step in seconds
+    const timeStep = 20*60; // Time step in seconds
     const numberOfSteps = Math.floor(timeWindow / timeStep);
     const newHistories = {};
 
@@ -792,7 +792,7 @@ function App() {
             />
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
-                Select SVs of Interest
+                Select Constellations of Interest
               </Typography>
               <SelectSVsOfInterest
                 onSelectionChange={(newChecked) => {
