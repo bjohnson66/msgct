@@ -80,14 +80,14 @@ const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosit
   }
 
   return (
-    <div style={{ width: '100%', height: '400px', position: 'relative' }}>
+    <div style={{ width: '75%', height: '80vh', position: 'relative', margin: '0 auto', justifyContent: 'center' }}>
       <MapContainer
         center={[currentPosition.lat, currentPosition.lon]}
-        zoom={2}
+        zoom={3}
         style={{ height: '100%', width: '100%' }}
         maxBounds={[[90, -180], [-90, 180]]}
         maxBoundsViscosity={1.0}
-        minZoom={2}
+        minZoom={3}
         maxZoom={19}
       >
         <TileLayer
