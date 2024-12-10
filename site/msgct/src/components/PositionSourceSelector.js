@@ -9,7 +9,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import Maps from './Maps';
 
 function PositionSourceSelector({
   positionSource,
@@ -18,7 +17,7 @@ function PositionSourceSelector({
   setManualPosition,
   receiverPosition,
   receiversSatelliteData,
-  receiversPositionsData
+  receiversPositionsData,
 }) {
   // Handle changes to the manual position inputs
   const handleManualPositionChange = (field) => (event) => {
@@ -140,14 +139,6 @@ function PositionSourceSelector({
           </Box>
         </Box>
       )}
-      {/* Pass the receiver satellites data to the map */}
-      <Maps
-        positionSource={positionSource}
-        manualPosition={manualPosition}
-        setManualPosition={setManualPosition}
-        receiverPosition={receiverPosition}
-        receiversPositionsData={receiversPositionsData}
-      />
     </Box>
   );
 }

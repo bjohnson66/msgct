@@ -33,7 +33,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosition, receiversPositionsData }) => {
+const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosition, receiversPositionsData}) => {
   const [currentPosition, setCurrentPosition] = React.useState({
     lat: 45.0,
     lon: -93.0,
@@ -80,41 +80,43 @@ const Maps = ({ positionSource, manualPosition, setManualPosition, receiverPosit
   }
 
   return (
-    <MapContainer
-      center={[currentPosition.lat, currentPosition.lon]}
-      zoom={2}
-      style={{ height: '400px', width: '800px' }}
-      maxBounds={[[90, -180], [-90, 180]]}
-      maxBoundsViscosity={1.0}
-      minZoom={2}
-      maxZoom={18}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-      <Marker position={[currentPosition.lat, currentPosition.lon]}>
-        <Popup>
-          {`Reference Position: Lat ${currentPosition.lat.toFixed(5)}, Lon ${currentPosition.lon.toFixed(5)}, Alt ${currentPosition.alt}m`}
-        </Popup>
-      </Marker>
+    <div style={{ width: '100%', height: '400px', position: 'relative' }}>
+      <MapContainer
+        center={[currentPosition.lat, currentPosition.lon]}
+        zoom={2}
+        style={{ height: '100%', width: '100%' }}
+        maxBounds={[[90, -180], [-90, 180]]}
+        maxBoundsViscosity={1.0}
+        minZoom={2}
+        maxZoom={19}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        <Marker position={[currentPosition.lat, currentPosition.lon]}>
+          <Popup>
+            {`Reference Position: Lat ${currentPosition.lat.toFixed(5)}, Lon ${currentPosition.lon.toFixed(5)}, Alt ${currentPosition.alt}m`}
+          </Popup>
+        </Marker>
 
-      {/* Plot each receiver's historical positions */}
-      {receiversPositionsData && Object.keys(receiversPositionsData).map((receiverName, rIndex) => {
-        const colorIndex = rIndex % receiverColors.length;
-        const icon = createColoredIcon(receiverColors[colorIndex]);
-        return receiversPositionsData[receiverName].map((pos, pIndex) => (
-          <Marker key={`${receiverName}-${pIndex}`} position={[pos.lat, pos.lon]} icon={icon}>
-            <Popup>
-              Receiver: {receiverName}<br/>
-              Lat: {pos.lat.toFixed(5)}, Lon: {pos.lon.toFixed(5)}, Alt: {pos.alt.toFixed(2)}<br/>
-              Time: {new Date(pos.timestamp).toLocaleTimeString()}
-            </Popup>
-          </Marker>
-        ));
-      })}
-      <MapClickHandler />
-    </MapContainer>
+        {/* Plot each receiver's historical positions */}
+        {receiversPositionsData && Object.keys(receiversPositionsData).map((receiverName, rIndex) => {
+          const colorIndex = rIndex % receiverColors.length;
+          const icon = createColoredIcon(receiverColors[colorIndex]);
+          return receiversPositionsData[receiverName].map((pos, pIndex) => (
+            <Marker key={`${receiverName}-${pIndex}`} position={[pos.lat, pos.lon]} icon={icon}>
+              <Popup>
+                Receiver: {receiverName}<br/>
+                Lat: {pos.lat.toFixed(5)}, Lon: {pos.lon.toFixed(5)}, Alt: {pos.alt.toFixed(2)}<br/>
+                Time: {new Date(pos.timestamp).toLocaleTimeString()}
+              </Popup>
+            </Marker>
+          ));
+        })}
+        <MapClickHandler />
+      </MapContainer>
+    </div>
   );
 };
 

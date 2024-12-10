@@ -32,9 +32,21 @@
   many cases, deviations from the AI's implementation were necessary. The AI acted as a tool to streamline the more tedious aspects of development, but the overall structure 
   and execution relied on deliberate decisions informed by Bradley Johnson's knowledge of GPS and MGNSS systems.
   ------------------------------------------------------------------------------
+  Final Styling Overhaul Before Customer Presntation was completed suing GPT 40 and o1. The chat cannot
+  be shared at this time as OpenAI does not allow the sharing of chats with user images. The changes encompased the 
+  following files:
+      modified:   site/msgct/package.json
+      modified:   site/msgct/src/App.js
+      modified:   site/msgct/src/components/Maps.js
+      modified:   site/msgct/src/components/PositionSourceSelector.js
+      modified:   site/msgct/src/components/SkyPlot.js
+  These changes were purely cosmetic and did not warrant testing other than verify that UI elements rendered in meaningful
+  ways on all types of screen sizes. 
+  One of the chats was: https://chatgpt.com/share/6757e4b5-ef88-800d-af05-d368ea50e37a
+  ------------------------------------------------------------------------------
 */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import {ThemeProvider,createTheme,CssBaseline,Switch,Container,Typography,Box,Stack,Grid,Checkbox,IconButton,} from '@mui/material';
+import {ThemeProvider,createTheme,CssBaseline,Switch,Container,Typography,Box,Stack,Grid,Checkbox,IconButton, Collapse, Button} from '@mui/material';
 import { Helmet } from 'react-helmet';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import GPSSatelliteTable from './components/GPSSatelliteTable';
@@ -42,11 +54,13 @@ import PositionSourceSelector from './components/PositionSourceSelector';
 import SelectSVsOfInterest from './components/SelectSVsOfInterest';
 import SerialPortComponent from './components/SerialPortComponent';
 import ReceiverSkyPlot from './components/ReceiverSkyPlot';
+import Maps from './components/Maps';
 import { fetchAlmanacByFilename, fetchBlockByFilename } from './utils/fetchData';
 import {calculateSatellitePosition,calculateElevationAzimuth, calculateSatellitePositionFromTLE,} from './utils/gpsCalculations';
 import './App.css';
 import logo from './logo_msgct.png';
 import DatePicker from './components/DateTimePicker';
+
 
 // #ifdef my problems away
 let SkyPlot;
@@ -173,6 +187,7 @@ export const resetMgnssRelativePositionsGlobal = () => {
 //  Main App Component
 //--------------------------------------
 function App() {
+  const [showSettings, setShowSettings] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [selectedConstellations, setSelectedConstellations] = useState({
     gps: true,
@@ -756,37 +771,6 @@ function App() {
             />
           </Box>
         </Box>
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Time Control (GPST)
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Checkbox
-              checked={useCurrentTime}
-              onChange={() => setUseCurrentTime(!useCurrentTime)}
-            />
-            <Typography>Use Current Time</Typography>
-
-            {!useCurrentTime && (
-              <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-                {/* Decrease GPST */}
-                <IconButton onClick={() => adjustTime(-15)}>
-                  <ArrowDownward />
-                </IconButton>
-
-                <DatePicker
-                  selectedDate={new Date((manualGPST + 315964800 + 18) * 1000)}
-                  onDateChange={handleDateChange}
-                />
-
-              <IconButton onClick={() => adjustTime(15)}>
-                <ArrowUpward />
-              </IconButton>
-              </Box>
-            )}
-          </Box>
-        </Grid>
-
       </Container>
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={2}>
@@ -813,25 +797,87 @@ function App() {
                 />
               )}
             </Box>
-            <Typography>Show Satellite Labels:</Typography>
-            <Switch
-              checked={showLabels}
-              onChange={() => setShowLabels(!showLabels)}
-              id="showLabelsSwitch"
-            />
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Select Constellations of Interest
+            <Button
+              variant="contained"
+              sx={{
+                mt: 2,
+                backgroundColor: '#FFCD00',
+                color: '#000', // Optional: Set text color to black for better contrast
+                '&:hover': {
+                  backgroundColor: '#E6B800', // Slightly darker shade for hover effect
+                },
+              }}
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              {showSettings ? 'Hide Settings' : 'Show Settings'}
+            </Button>
+
+            <Collapse in={showSettings} timeout="auto" unmountOnExit>
+              <Typography variant="h4" gutterBottom>
+                  Settings:
               </Typography>
-              <SelectSVsOfInterest
-                onSelectionChange={(newChecked) => {
-                  setSelectedConstellations(newChecked);
-                }}
-                onBlockTypeChange={(newBlockTypes) => {
-                  setSelectedGpsBlockTypes(newBlockTypes);
-                }}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Checkbox
+                    checked={useCurrentTime}
+                    onChange={() => setUseCurrentTime(!useCurrentTime)}
+                  />
+                  <Typography>Use Current Time</Typography>
+
+                  {!useCurrentTime && (
+                    <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
+                      {/* Decrease GPST */}
+                      <IconButton onClick={() => adjustTime(-15)}>
+                        <ArrowDownward />
+                      </IconButton>
+
+                      <DatePicker
+                        selectedDate={new Date((manualGPST + 315964800 + 18) * 1000)}
+                        onDateChange={handleDateChange}
+                      />
+
+                    <IconButton onClick={() => adjustTime(15)}>
+                      <ArrowUpward />
+                    </IconButton>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+              <Typography>Show Satellite Labels:</Typography>
+              <Switch
+                checked={showLabels}
+                onChange={() => setShowLabels(!showLabels)}
+                id="showLabelsSwitch"
               />
-            </Grid>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Select Constellations of Interest
+                </Typography>
+                <SelectSVsOfInterest
+                  onSelectionChange={(newChecked) => {
+                    setSelectedConstellations(newChecked);
+                  }}
+                  onBlockTypeChange={(newBlockTypes) => {
+                    setSelectedGpsBlockTypes(newBlockTypes);
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  User Position Source
+                </Typography>
+                {/* Pass receiversSatelliteData to PositionSourceSelector so the map can plot them */}
+                <PositionSourceSelector
+                  positionSource={positionSource}
+                  onPositionSourceChange={handlePositionSourceChange}
+                  manualPosition={manualPosition}
+                  setManualPosition={setManualPosition}
+                  receiverPosition={userPositionState}
+                  receiversSatelliteData={receiversSatelliteData}
+                  receiversPositionsData={receiversPositionsData}
+                />
+              </Grid>
+            </Collapse>
           </Grid>
           <Grid
             item
@@ -853,21 +899,14 @@ function App() {
           </Grid>
         </Grid>
         <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            User Position Source
-          </Typography>
-          {/* Pass receiversSatelliteData to PositionSourceSelector so the map can plot them */}
-          <PositionSourceSelector
+          <Maps
             positionSource={positionSource}
-            onPositionSourceChange={handlePositionSourceChange}
             manualPosition={manualPosition}
             setManualPosition={setManualPosition}
             receiverPosition={userPositionState}
-            receiversSatelliteData={receiversSatelliteData}
-            receiversPositionsData={receiversPositionsData} 
+            receiversPositionsData={receiversPositionsData}
+            darkMode={darkMode}
           />
-        </Grid>
-        <Grid item xs={12}>
           <SerialPortComponent 
             onPositionUpdate={handlePositionUpdate} 
             positionSource={positionSource} 

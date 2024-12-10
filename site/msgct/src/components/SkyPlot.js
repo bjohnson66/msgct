@@ -55,16 +55,18 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
         }
       });
   
-      if (containerRef.current) {
-        observer.observe(containerRef.current);
+      const currentContainer = containerRef.current; // Store the current ref value
+
+      if (currentContainer) {
+        observer.observe(currentContainer);
       }
-  
+
       return () => {
-        if (containerRef.current) {
-          observer.unobserve(containerRef.current);
+        if (currentContainer) {
+          observer.unobserve(currentContainer);
         }
       };
-    }, []);
+    }, [containerRef]);
   
     useEffect(() => {
       // Define colors based on darkMode
