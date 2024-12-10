@@ -51,19 +51,38 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, 
     }
   };
 
-  const processLine = useCallback(
-    (line) => {
+  const processLine = useCallback((line) => {
+    const trimmedLine = line.trim();
+
+    // Check if it's a GSV sentence
     if (
-      line.startsWith('$GPGSV') ||
-      line.startsWith('$GLGSV') ||
-      line.startsWith('$GAGSV') ||
-      line.startsWith('$BDGSV') ||
-      line.startsWith('$QZGSV') ||
-      line.startsWith('$GNGSV')
+      trimmedLine.startsWith('$GPGSV') ||
+      trimmedLine.startsWith('$GLGSV') ||
+      trimmedLine.startsWith('$GAGSV') ||
+      trimmedLine.startsWith('$BDGSV') ||
+      trimmedLine.startsWith('$QZGSV') ||
+      trimmedLine.startsWith('$GNGSV')
     ) {
-      const satelliteInfo = parseGSV(line);
+      const fields = trimmedLine.split(',');
+
+      // Basic validation: GSV sentences have a known structure. At a minimum:
+      // $xxGSV,total_msgs,msg_no,total_sats,[satellite blocks...]
+      // Each satellite block has 4 fields, so total fields should be 4 + (4 * number_of_satellites_in_this_sentence).
+      if (fields.length < 4 || (fields.length - 4) % 4 !== 0) {
+        console.warn('GSV line does not have the expected field count for satellites:', trimmedLine);
+        return; // Skip invalid line
+      }
+
+      const satelliteInfo = parseGSV(trimmedLine);
       if (satelliteInfo && satelliteInfo.length > 0) {
         satelliteInfo.forEach((sat) => {
+          // Validate PRN is numeric and positive
+          const prnNum = parseInt(sat.ID, 10);
+          if (isNaN(prnNum) || prnNum <= 0) {
+            console.warn('Invalid PRN detected, skipping this satellite:', sat.ID, 'Line:', trimmedLine);
+            return; // Skip this satellite
+          }
+
           const constellation = getConstellationFromPRN(sat.ID);
           if (constellation !== 'unknown') {
             setSerialTableData((prevData) => {
@@ -95,20 +114,25 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, 
             });
           }
         });
+      } else {
+        // Even if parseGSV returned empty or invalid data, warn and move on
+        console.warn('GSV parsing returned no satellites or invalid data for line:', trimmedLine);
       }
     } else if (
-      line.startsWith('$GPGGA') ||
-      line.startsWith('$GLGGA') ||
-      line.startsWith('$GAGGA') ||
-      line.startsWith('$BDGGA') ||
-      line.startsWith('$QZGGA') ||
-      line.startsWith('$GNGGA')
+      trimmedLine.startsWith('$GPGGA') ||
+      trimmedLine.startsWith('$GLGGA') ||
+      trimmedLine.startsWith('$GAGGA') ||
+      trimmedLine.startsWith('$BDGGA') ||
+      trimmedLine.startsWith('$QZGGA') ||
+      trimmedLine.startsWith('$GNGGA')
     ) {
-      const positionInfo = parseGGA(line);
+      const positionInfo = parseGGA(trimmedLine);
       if (positionInfo && onPositionUpdate && positionSource === 'receiver') {
         console.log('Position update:', positionInfo);
         onPositionUpdate(positionInfo, portInfo.name);
       }
+    } else {
+      // If not GSV or GGA, ignore or handle other sentence types if needed.
     }
   }, [setSerialTableData, setSelectedSatellites, onPositionUpdate, positionSource, portInfo.name]);
 
@@ -195,7 +219,7 @@ function PortReader({ portInfo, onPositionUpdate, positionSource, onDisconnect, 
                   bufferRef.current = lines.pop();
 
                   for (let line of lines) {
-                    processLine(line.trim());
+                    processLine(line);
                   }
                 }
               }
