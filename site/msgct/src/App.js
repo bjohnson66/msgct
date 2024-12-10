@@ -747,12 +747,14 @@ function App() {
               MGNSS.live
             </Typography>
           </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           <Typography>Dark Mode:</Typography>
-          <Switch
-            checked={darkMode}
-            onChange={() => setDarkMode(!darkMode)}
-            id="darkModeSwitch"
-          />
+            <Switch
+              checked={darkMode}
+              onChange={() => setDarkMode(!darkMode)}
+              id="darkModeSwitch"
+            />
+          </Box>
         </Box>
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
@@ -787,21 +789,30 @@ function App() {
 
       </Container>
       <Stack spacing={2} sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={1}>
-          <Grid item xs={11} md={3.5}>
-            <Typography variant="h6" gutterBottom>
-              Live Sky Plot
-            </Typography>
-            {SkyPlot && (
-              <SkyPlot
-                mgnssRelativePositions={mgnssRelativePositionsGlobal}
-                selectedConstellations={selectedConstellations}
-                selectedSatellites={selectedSatellites}
-                darkMode={darkMode}
-                satelliteHistories={satelliteHistories}
-                showLabels={showLabels}
-              />
-            )}
+        <Grid container spacing={2}>
+          <Grid
+            item
+            xs={12}  // Full width on extra-small screens
+            sm={12}  // Full width on small screens
+            md={4}   // 5/12 width on medium screens
+            lg={5}   // 4/12 width on large screens
+            xl={5}   // 4/12 width on extra-large screens
+          >
+            <Box sx={{ overflowX: 'auto', maxWidth: '100%' }}>
+              <Typography variant="h6" gutterBottom>
+                Live Sky Plot
+              </Typography>
+              {SkyPlot && (
+                <SkyPlot
+                  mgnssRelativePositions={mgnssRelativePositionsGlobal}
+                  selectedConstellations={selectedConstellations}
+                  selectedSatellites={selectedSatellites}
+                  darkMode={darkMode}
+                  satelliteHistories={satelliteHistories}
+                  showLabels={showLabels}
+                />
+              )}
+            </Box>
             <Typography>Show Satellite Labels:</Typography>
             <Switch
               checked={showLabels}
@@ -822,7 +833,14 @@ function App() {
               />
             </Grid>
           </Grid>
-          <Grid item xs={11} md={8}>
+          <Grid
+            item
+            xs={12}  // Full width on extra-small screens
+            sm={12}  // Full width on small screens
+            md={8}   // 7/12 width on medium screens
+            lg={7}   // 8/12 width on large screens
+            xl={7}   // 8/12 width on extra-large screens
+          >      
             <Typography variant="h6" gutterBottom>
               GPS Satellite Data
             </Typography>

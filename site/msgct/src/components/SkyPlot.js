@@ -1,10 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import { COLORS, getColor } from '../utils/colors';
 
 
 function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode, showLabels}) {
     const svgRef = useRef(null);
+    const containerRef = useRef(null); // Reference for the container
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 }); // Track container size
+
 
     // Helper function to generate the abbreviated satellite label
     const getAbbreviatedSatelliteLabel = (satellite, constellation) => {
@@ -42,6 +45,26 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       return 'Unknown';
     };
 
+    useEffect(() => {
+      // Use ResizeObserver to monitor container size changes
+      const observer = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          let { width, height } = entry.contentRect;
+          height = width; //make it a square
+          setDimensions({ width, height });
+        }
+      });
+  
+      if (containerRef.current) {
+        observer.observe(containerRef.current);
+      }
+  
+      return () => {
+        if (containerRef.current) {
+          observer.unobserve(containerRef.current);
+        }
+      };
+    }, []);
   
     useEffect(() => {
       // Define colors based on darkMode
@@ -64,8 +87,7 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       // Function to draw the sky plot with updated satellite data
       const drawSkyPlot = () => {
         // Dimensions
-        const width = 550;
-        const height = 550;
+        const { width, height } = dimensions;
         const margin = 40;
         const radius = Math.min(width, height) / 2 - margin;
   
@@ -230,13 +252,17 @@ function SkyPlot({ mgnssRelativePositions, selectedConstellations, selectedSatel
       };
   
       // Draw the sky plot initially
-      drawSkyPlot();
+      if (dimensions.width && dimensions.height) {
+        drawSkyPlot();
+      }
   
       // Update the sky plot whenever satellites data, histories, or darkMode change
-    }, [mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode, showLabels]); //redraw if data changes
+    }, [mgnssRelativePositions, selectedConstellations, selectedSatellites, satelliteHistories, darkMode, showLabels, dimensions]); //redraw if data changes
   
     return (
-      <svg ref={svgRef}></svg>
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+        <svg ref={svgRef}></svg>
+      </div>
     );
   }
 
