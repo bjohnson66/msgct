@@ -582,7 +582,12 @@ function App() {
             // Map block types to GPS satellites
             const satellitesWithBlockType = gpsData.satellites.map((satellite) => {
               const normalizedID = parseInt(satellite.ID, 10).toString();
-              const blockType = blockTypeLookup[normalizedID]?.toLowerCase() || 'other';
+              
+              //doing raw first so we can properly handle '-' characters in the raw data from coast guard
+              const rawType = blockTypeLookup[normalizedID] || 'other';
+
+              // Remove non-alphanumeric characters and convert to lowercase
+              const blockType = rawType.replace(/[^a-z0-9]/gi, '').toLowerCase();
               return {
                 ...satellite,
                 BlockType: blockType,
