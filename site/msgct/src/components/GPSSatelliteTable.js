@@ -27,13 +27,13 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
       case 'gps':
         return getColor(COLORS.limeGreen, isDarkMode); // GPS is lime green
       case 'qzss':
-        return getColor(COLORS.purple, isDarkMode); // QZSS is purple
+        return getColor(COLORS.purple, isDarkMode);    // QZSS is purple
       case 'galileo':
-        return getColor(COLORS.cyan, isDarkMode); // Galileo is cyan
+        return getColor(COLORS.cyan, isDarkMode);      // Galileo is cyan
       case 'glonass':
-        return getColor(COLORS.pink, isDarkMode); // GLONASS is pink
+        return getColor(COLORS.pink, isDarkMode);      // GLONASS is pink
       case 'beidou':
-        return getColor(COLORS.yellow, isDarkMode); // BeiDou is red
+        return getColor(COLORS.yellow, isDarkMode);    // BeiDou is yellow
       default:
         return '';
     }
@@ -61,39 +61,58 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
 
             const satellites = mgnssRelativePositions[constellation];
             return satellites.map((satellite) => {
-              // Determine health status
+              // Determine health status based on satellite.health
+              // '000' is Healthy, 'Unhealthy' if SNR was N/A, else N/A for non-GPS
               let healthStatus;
-              let healthColor = 'inherit'; // Default color
+              let healthColor = 'inherit';
 
               if (constellation === 'gps') {
-                healthStatus = satellite.health === "000" || satellite.health === 0 ? "Healthy" : "Unhealthy";
-                healthColor = healthStatus === "Healthy" ? 'green' : 'red';
+                if (satellite.health === '000') {
+                  healthStatus = "Healthy";
+                  healthColor = 'green';
+                } else if (satellite.health === 'Unhealthy') {
+                  healthStatus = "Unhealthy";
+                  healthColor = 'red';
+                } else {
+                  // If somehow not '000' or 'Unhealthy', default to N/A
+                  healthStatus = "N/A";
+                }
               } else {
-                healthStatus = "N/A";
+                // For other constellations not currently checked in parser,
+                // just show what we have. If parser sets health to Unhealthy, show that.
+                if (satellite.health === 'Unhealthy') {
+                  healthStatus = "Unhealthy";
+                  healthColor = 'red';
+                } else if (satellite.health === '000') {
+                  healthStatus = "Healthy";
+                  healthColor = 'green';
+                } else {
+                  healthStatus = "N/A";
+                }
               }
 
               return (
-              <TableRow key={`${constellation}_${satellite.ID}`}
-                sx={{
-                  backgroundColor: getRowColor(constellation),
-                  '&:hover': {
-                    backgroundColor: `${getRowColor(constellation)}CC`, // Slightly darker on hover
-                  },
-                }}
-              >
-                <TableCell>
-                  <Checkbox
-                    checked={selectedSatellites[constellation]?.[satellite.ID] ?? true}
-                    onChange={() => handleToggle(constellation, satellite.ID)}
-                    inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
-                  />
-                </TableCell>
-                <TableCell component="th" scope="row">{satellite.ID}</TableCell>
-                <TableCell align="right">{constellation.toUpperCase()}</TableCell>
-                <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
-                <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
-                <TableCell align="right">{satellite.snr ? satellite.snr.toFixed(2) : 'N/A'}</TableCell>
-                <TableCell
+                <TableRow key={`${constellation}_${satellite.ID}`}
+                  sx={{
+                    backgroundColor: getRowColor(constellation),
+                    '&:hover': {
+                      backgroundColor: `${getRowColor(constellation)}CC`, // Slightly darker on hover
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedSatellites[constellation]?.[satellite.ID] ?? true}
+                      onChange={() => handleToggle(constellation, satellite.ID)}
+                      inputProps={{ 'aria-label': `Plot satellite ${satellite.ID}` }}
+                    />
+                  </TableCell>
+                  <TableCell component="th" scope="row">{satellite.ID}</TableCell>
+                  <TableCell align="right">{constellation.toUpperCase()}</TableCell>
+                  <TableCell align="right">{satellite.elevation.toFixed(2)}</TableCell>
+                  <TableCell align="right">{satellite.azimuth.toFixed(2)}</TableCell>
+                  <TableCell align="right">{(satellite.snr !== undefined && !isNaN(satellite.snr)) ? satellite.snr.toFixed(2) : 'N/A'}</TableCell>
+                  <TableCell
                     align="right"
                     sx={{
                       color: healthColor,
@@ -101,8 +120,8 @@ function GPSSatelliteTable({ mgnssRelativePositions, selectedConstellations, sel
                     }}
                   >
                     {healthStatus}
-                </TableCell>
-              </TableRow>
+                  </TableCell>
+                </TableRow>
               );
             });
           })}

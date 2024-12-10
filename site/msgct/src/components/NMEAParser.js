@@ -14,15 +14,30 @@ export const parseGSV = (sentence) => {
     const prn = fields[i];
     const elevation = fields[i + 1];
     const azimuth = fields[i + 2];
-    const snr = fields[i + 3];
+    const snrRaw = fields[i + 3];
 
     if (prn) {
+      // Normalize the SNR field
+      const snrTrimmed = snrRaw ? snrRaw.trim().toUpperCase() : '';
+      const isNAA = (snrTrimmed === 'N/A'); // Check if exactly "N/A"
+
+      let snrValue = 0;
+      if (!isNAA) {
+        const parsedSNR = parseFloat(snrRaw);
+        if (!isNaN(parsedSNR)) {
+          snrValue = parsedSNR;
+        }
+      }
+
+      // If SNR is N/A or <= 0, consider Unhealthy, else Healthy (000)
+      const healthStatus = (isNAA || snrValue <= 0) ? 'Unhealthy' : '000';
+
       satellites.push({
         ID: prn.trim(),
         elevation: parseFloat(elevation) || 0,
         azimuth: parseFloat(azimuth) || 0,
-        snr: parseFloat(snr) || 0,
-        health: '000',
+        snr: snrValue,
+        health: healthStatus,
       });
     }
   }
